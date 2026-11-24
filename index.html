@@ -308,7 +308,7 @@
       </div>
 
       <div id="adminAuthForm" class="auth-form" style="display:none;">
-        <input type="password" id="adminPassInput" placeholder="管理員密碼（預設 admin）" style="width:210px;" />
+        <input type="password" id="adminPassInput" placeholder="管理員密碼" style="width:210px;" />
         <button type="button" class="btn btn-success" onclick="loginAdmin()">以管理員登入</button>
         <button type="button" id="adminLogoutBtn" class="btn btn-secondary" style="display:none;" onclick="logoutUser()">登出</button>
       </div>
@@ -400,11 +400,10 @@
     var DEFAULT_START = "2026-07-05";
     var ADMIN_PASS = "021781";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
-    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v1";
+    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v2";
 
     var initialStaff = [
       {"block": "店長", "emp_id": "003279", "name": "呂憲昌", "phone": "0933776016", "role": "店經理"},
-      
       {"block": "1樓", "emp_id": "023643", "name": "李韋忠", "phone": "0910647959", "role": "Apple副理"},
       {"block": "1樓", "emp_id": "026624", "name": "劉書辰", "phone": "0918228389", "role": "服務專員"},
       {"block": "1樓", "emp_id": "012793", "name": "賴佳良", "phone": "0973911811", "role": "數位通訊副理"},
@@ -476,6 +475,7 @@
           if (!data || !data.ok) throw new Error((data && data.error) || "讀取失敗");
           if (data.leaves && typeof data.leaves === "object") {
             Object.keys(data.leaves).forEach(function (name) {
+              if (name === "銀盺") return;
               leaves[name] = Array.isArray(data.leaves[name]) ? data.leaves[name].slice().sort() : [];
               if (!staff.some(function (s) { return s.name === name; })) {
                 staff.push({ name: name, block: "未分區", role: "", emp_id: "", phone: "" });
@@ -629,7 +629,7 @@
     function loginAdmin() {
       var pw = (document.getElementById("adminPassInput").value || "").trim();
       if (pw !== ADMIN_PASS) {
-        setAuthMsg("管理員密碼錯誤（預設為 admin）。", false);
+        setAuthMsg("管理員密碼錯誤，請重新輸入。", false);
         return;
       }
       session = { role: "admin", name: "排班管理員" };
