@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="南崁店排休" />
   <link rel="manifest" href="manifest.json" />
-  <title>南崁店 28天月曆按鈕排休工具（晶透玻璃光暈·手機操作與期別鎖定版）</title>
+  <title>南崁店 28天月曆按鈕排休工具（晶透玻璃光暈·雲端鎖定同步版）</title>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root {
@@ -1404,7 +1404,7 @@
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
     var IDLE_TIMEOUT_MINUTES = 5;
-    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v18_";
+    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v19_";
     var QUEUE_STORAGE_KEY = STORAGE_PREFIX + "pending_sync_queue";
 
     var BLOCK_LIMITS = {
@@ -1535,6 +1535,10 @@
       if (payloadObj.action === "sync_person" && payloadObj.staffName) {
         q = q.filter(function (item) {
           return !(item && item.action === "sync_person" && item.staffName === payloadObj.staffName);
+        });
+      } else if (payloadObj.action === "sync_settings") {
+        q = q.filter(function (item) {
+          return !(item && item.action === "sync_settings");
         });
       }
       q.push(payloadObj);
@@ -1740,12 +1744,51 @@
       updateUndoButtonState();
     }
 
+    function pushScheduleSettingsToCloud() {
+      var payload = {
+        action: "sync_settings",
+        scheduleLocked: Boolean(scheduleLocked),
+        deadlineDate: String(deadlineDate || ""),
+        targetLeaveDays: Number(targetLeaveDays) || 8
+      };
+
+      if (!isCloudConfigured() || !navigator.onLine) {
+        enqueueSyncPayload(payload);
+        if (!isCloudConfigured()) setSyncStatus("雲端：尚未設定網址", "");
+        else setSyncStatus("雲端：離線待同步（" + getPendingQueue().length + "）", "sync-err");
+        return;
+      }
+
+      setSyncStatus("雲端：同步鎖定設定中...", "sync-busy");
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (!data || !data.ok) throw new Error((data && data.error) || "設定寫入失敗");
+          var q = getPendingQueue().filter(function (item) {
+            return !(item && item.action === "sync_settings");
+          });
+          savePendingQueue(q);
+          setSyncStatus("雲端：鎖定設定已同步 " + formatTimeHM(new Date()), "sync-ok");
+        })
+        .catch(function (err) {
+          enqueueSyncPayload(payload);
+          setSyncStatus("雲端：設定同步失敗（已排入待同步）", "sync-err");
+          setAuthMsg("鎖定／截止日設定同步至雲端失敗（已暫存本機並排入待同步）：" + err.message, false);
+        });
+    }
+
     function toggleScheduleLock() {
       if (!session || session.role !== "admin") return;
       scheduleLocked = !scheduleLocked;
       saveState();
       syncLockControlsUI();
       renderAll();
+      pushScheduleSettingsToCloud();
+      setAuthMsg("已" + (scheduleLocked ? "開啟「截止鎖定」" : "解除「截止鎖定」") + "並同步至雲端。", true);
     }
 
     function shiftPeriod(deltaDays) {
@@ -1843,7 +1886,7 @@
       var p = staff.find(function (s) { return s.name === personName; });
       if (!p) return;
       editingOriginalName = p.name;
-      document.getElementById("editStaffTitle").textContent = "修改現有員工資料（目前編輯：" + p.name + "）";
+      document.getElementById("editStaffTitle").textContent = "修改現有員工資料（點選下方名單列可帶入）（目前編輯：" + p.name + "）";
       document.getElementById("editName").value = p.name || "";
       document.getElementById("editBlock").value = p.block || "1樓";
       document.getElementById("editRole").value = p.role || "";
@@ -1871,6 +1914,27 @@
         if (!document.getElementById("startDateInput").value) {
           document.getElementById("startDateInput").value = data.startDate;
         }
+      }
+
+      if (typeof data.scheduleLocked === "boolean") {
+        scheduleLocked = data.scheduleLocked;
+      } else if (data.settings && typeof data.settings.scheduleLocked === "boolean") {
+        scheduleLocked = data.settings.scheduleLocked;
+      }
+
+      if (typeof data.deadlineDate === "string") {
+        deadlineDate = data.deadlineDate;
+      } else if (data.settings && typeof data.settings.deadlineDate === "string") {
+        deadlineDate = data.settings.deadlineDate;
+      }
+
+      var cloudTargetDays = (typeof data.targetLeaveDays === "number")
+        ? data.targetLeaveDays
+        : (data.settings && typeof data.settings.targetLeaveDays === "number" ? data.settings.targetLeaveDays : null);
+      if (typeof cloudTargetDays === "number" && cloudTargetDays >= 1 && cloudTargetDays <= 28) {
+        targetLeaveDays = cloudTargetDays;
+        var tInput = document.getElementById("targetDaysInput");
+        if (tInput) tInput.value = String(targetLeaveDays);
       }
 
       staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
@@ -1908,7 +1972,7 @@
           } else {
             setSyncStatus("雲端：已同步 " + formatTimeHM(new Date()), "sync-ok");
           }
-          if (showToast) setAuthMsg("已從 Google 試算表更新最新排休與人員資料。", true);
+          if (showToast) setAuthMsg("已從 Google 試算表更新最新排休、人員與鎖定設定。", true);
           return data;
         })
         .catch(function (err) {
@@ -1922,7 +1986,9 @@
       var payload = {
         action: "sync_person",
         staffName: personName,
-        dates: updatedDates.slice().sort()
+        dates: updatedDates.slice().sort(),
+        scheduleLocked: Boolean(scheduleLocked),
+        deadlineDate: String(deadlineDate || "")
       };
 
       if (!isCloudConfigured() || !navigator.onLine) {
@@ -1936,21 +2002,31 @@
       fetch(APPS_SCRIPT_URL, { method: "GET" })
         .then(function (res) { return res.json(); })
         .then(function (latestData) {
-          if (latestData && latestData.ok && latestData.leaves && typeof latestData.leaves === "object") {
-            Object.keys(latestData.leaves).forEach(function (otherName) {
-              if (otherName === personName || otherName === "銀昕" || otherName === "銀盺") return;
-              leaves[otherName] = Array.isArray(latestData.leaves[otherName])
-                ? latestData.leaves[otherName].slice().sort()
-                : [];
-            });
-            if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
-              staff = latestData.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+          if (latestData && latestData.ok) {
+            if (latestData.leaves && typeof latestData.leaves === "object") {
+              Object.keys(latestData.leaves).forEach(function (otherName) {
+                if (otherName === personName || otherName === "銀昕" || otherName === "銀盺") return;
+                leaves[otherName] = Array.isArray(latestData.leaves[otherName])
+                  ? latestData.leaves[otherName].slice().sort()
+                  : [];
+              });
+              if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
+                staff = latestData.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+              }
+              staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
             }
-            staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
+            if (typeof latestData.scheduleLocked === "boolean") {
+              scheduleLocked = latestData.scheduleLocked;
+            }
+            if (typeof latestData.deadlineDate === "string") {
+              deadlineDate = latestData.deadlineDate;
+            }
           }
 
           leaves[personName] = updatedDates.slice().sort();
           payload.dates = leaves[personName];
+          payload.scheduleLocked = Boolean(scheduleLocked);
+          payload.deadlineDate = String(deadlineDate || "");
           saveState();
           renderAll();
 
@@ -2007,7 +2083,10 @@
         action: "sync_all",
         staff: staff,
         leaves: leaves,
-        startDate: curStart || ""
+        startDate: curStart || "",
+        scheduleLocked: Boolean(scheduleLocked),
+        deadlineDate: String(deadlineDate || ""),
+        targetLeaveDays: Number(targetLeaveDays) || 8
       };
       if (!isCloudConfigured() || !navigator.onLine) {
         enqueueSyncPayload(payload);
@@ -3289,6 +3368,8 @@
       deadlineDate = (ev.target.value || "").trim();
       saveState();
       syncLockControlsUI();
+      pushScheduleSettingsToCloud();
+      setAuthMsg(deadlineDate ? ("已更新排休截止日為 " + deadlineDate + " 並同步至雲端。") : "已清除排休截止日並同步至雲端。", true);
     });
 
     document.getElementById("targetDaysInput").addEventListener("change", function (ev) {
@@ -3299,3 +3380,26 @@
       ev.target.value = String(val);
       saveState();
       renderAll();
+      if (session && session.role === "admin") {
+        pushScheduleSettingsToCloud();
+      }
+    });
+
+    document.getElementById("staffIdInput").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") loginStaff();
+    });
+    document.getElementById("staffPinInput").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") loginStaff();
+    });
+    document.getElementById("adminPassInput").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") loginAdmin();
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
