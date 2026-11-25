@@ -404,7 +404,7 @@
         <button type="button" id="adminLogoutBtn" class="btn btn-secondary" style="display:none;" onclick="logoutUser()">登出</button>
       </div>
 
-      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假或變更員工資料會自動同步到雲端試算表；閒置 5 分鐘未操作會自動登出。</div>
+      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假或變更員工資料會先同步最新雲端狀態再合併寫入；閒置 5 分鐘未操作會自動登出。</div>
     </div>
 
     <div id="lockBanner" class="lock-banner">
@@ -537,7 +537,7 @@
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
     var IDLE_TIMEOUT_MINUTES = 5;
-    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v10";
+    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v11_";
 
     var BLOCK_LIMITS = {
       "1樓": 2,
@@ -568,6 +568,12 @@
 
     var idleTimer = null;
     var lastActivityAt = 0;
+
+    function getCurrentStorageKey() {
+      if (!session) return STORAGE_PREFIX + "guest";
+      if (session.role === "admin") return STORAGE_PREFIX + "admin";
+      return STORAGE_PREFIX + "staff_" + encodeURIComponent(session.name);
+    }
 
     function clearIdleTimer() {
       if (idleTimer) {
@@ -641,6 +647,10 @@
       return Boolean(APPS_SCRIPT_URL) && APPS_SCRIPT_URL.indexOf("YOUR_DEPLOYMENT_ID") === -1;
     }
 
+    function formatTimeHM(dt) {
+      return pad2(dt.getHours()) + ":" + pad2(dt.getMinutes());
+    }
+
     function setSyncStatus(text, stateClass) {
       var pill = document.getElementById("syncPill");
       if (!pill) return;
@@ -650,7 +660,7 @@
 
     function saveState() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        localStorage.setItem(getCurrentStorageKey(), JSON.stringify({
           staff: staff,
           leaves: leaves,
           selectedPerson: selectedPerson,
@@ -659,27 +669,27 @@
       } catch (e) {}
     }
 
-    function loadState() {
+    function loadStateForCurrentSession() {
       try {
-        var raw = localStorage.getItem(STORAGE_KEY);
+        var raw = localStorage.getItem(getCurrentStorageKey());
         if (raw) {
           var s = JSON.parse(raw);
           if (Array.isArray(s.staff) && s.staff.length) staff = s.staff;
           if (s.leaves && typeof s.leaves === "object") leaves = s.leaves;
           staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
-          if (s.selectedPerson && staff.some(function (p) { return p.name === s.selectedPerson; })) {
+          if (session && session.role === "staff") {
+            selectedPerson = session.name;
+          } else if (s.selectedPerson && staff.some(function (p) { return p.name === s.selectedPerson; })) {
             selectedPerson = s.selectedPerson;
           } else {
             selectedPerson = staff[0].name;
           }
+          if (s.startDate) {
+            document.getElementById("startDateInput").value = s.startDate;
+          }
         }
       } catch (e) {}
-
-      session = null;
-      lastActivityAt = 0;
-      clearIdleTimer();
       editingOriginalName = selectedPerson;
-      document.getElementById("startDateInput").value = DEFAULT_START || "";
     }
 
     function loadStaffToEditor(personName) {
@@ -694,75 +704,107 @@
       document.getElementById("editPhone").value = p.phone || "";
     }
 
+    function applyCloudPayload(data) {
+      if (Array.isArray(data.staff) && data.staff.length > 0) {
+        staff = data.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+      }
+
+      if (data.leaves && typeof data.leaves === "object") {
+        Object.keys(data.leaves).forEach(function (name) {
+          if (name === "銀昕" || name === "銀盺") return;
+          leaves[name] = Array.isArray(data.leaves[name]) ? data.leaves[name].slice().sort() : [];
+          if (!staff.some(function (s) { return s.name === name; })) {
+            staff.push({ name: name, block: "未分區", role: "", emp_id: "", phone: "" });
+          }
+        });
+      }
+
+      if (data.startDate && !document.getElementById("startDateInput").value) {
+        document.getElementById("startDateInput").value = data.startDate;
+      }
+
+      staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
+      if (session && session.role === "staff") {
+        selectedPerson = session.name;
+      } else if (!staff.some(function (p) { return p.name === selectedPerson; })) {
+        selectedPerson = staff[0] ? staff[0].name : "";
+      }
+      editingOriginalName = selectedPerson;
+    }
+
     function pullFromCloud(showToast) {
       if (!isCloudConfigured()) {
         setSyncStatus("雲端：尚未設定網址", "");
-        return Promise.resolve();
+        return Promise.resolve(null);
       }
       if (!navigator.onLine) {
         setSyncStatus("雲端：離線中（用本機）", "sync-err");
-        return Promise.resolve();
+        return Promise.resolve(null);
       }
       setSyncStatus("雲端：同步中...", "sync-busy");
       return fetch(APPS_SCRIPT_URL, { method: "GET" })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "讀取失敗");
-
-          if (Array.isArray(data.staff) && data.staff.length > 0) {
-            staff = data.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
-          }
-
-          if (data.leaves && typeof data.leaves === "object") {
-            Object.keys(data.leaves).forEach(function (name) {
-              if (name === "銀昕" || name === "銀盺") return;
-              leaves[name] = Array.isArray(data.leaves[name]) ? data.leaves[name].slice().sort() : [];
-              if (!staff.some(function (s) { return s.name === name; })) {
-                staff.push({ name: name, block: "未分區", role: "", emp_id: "", phone: "" });
-              }
-            });
-          }
-
-          staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
-          if (!staff.some(function (p) { return p.name === selectedPerson; })) {
-            selectedPerson = staff[0] ? staff[0].name : "";
-          }
-          editingOriginalName = selectedPerson;
-
+          applyCloudPayload(data);
           saveState();
           renderPersonSelect();
           if (session && session.role === "admin") loadStaffToEditor(selectedPerson);
           renderAll();
-          setSyncStatus("雲端：已同步", "sync-ok");
+          setSyncStatus("雲端：已同步 " + formatTimeHM(new Date()), "sync-ok");
           if (showToast) setAuthMsg("已從 Google 試算表更新最新排休與人員資料。", true);
+          return data;
         })
         .catch(function (err) {
           setSyncStatus("雲端：同步失敗", "sync-err");
           if (showToast) setAuthMsg("雲端讀取失敗：" + err.message, false);
+          return null;
         });
     }
 
-    function pushPersonToCloud(personName) {
+    // 先抓最新雲端資料，保留其他人的休假，只更新指定 personName 的日期後寫回
+    function pushPersonToCloudSafe(personName, updatedDates) {
       if (!isCloudConfigured() || !navigator.onLine) {
         if (!isCloudConfigured()) setSyncStatus("雲端：尚未設定網址", "");
         else setSyncStatus("雲端：離線暫存本機", "sync-err");
         return;
       }
-      setSyncStatus("雲端：儲存中...", "sync-busy");
-      var body = JSON.stringify({
-        action: "sync_person",
-        staffName: personName,
-        dates: (leaves[personName] || []).slice().sort()
-      });
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: body
-      })
+      setSyncStatus("雲端：合併儲存中...", "sync-busy");
+
+      fetch(APPS_SCRIPT_URL, { method: "GET" })
         .then(function (res) { return res.json(); })
+        .then(function (latestData) {
+          if (latestData && latestData.ok && latestData.leaves && typeof latestData.leaves === "object") {
+            Object.keys(latestData.leaves).forEach(function (otherName) {
+              if (otherName === personName || otherName === "銀昕" || otherName === "銀盺") return;
+              leaves[otherName] = Array.isArray(latestData.leaves[otherName])
+                ? latestData.leaves[otherName].slice().sort()
+                : [];
+            });
+            if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
+              staff = latestData.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+            }
+            staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
+          }
+
+          leaves[personName] = updatedDates.slice().sort();
+          saveState();
+          renderAll();
+
+          return fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "sync_person",
+              staffName: personName,
+              dates: leaves[personName]
+            })
+          });
+        })
+        .then(function (res) { return res ? res.json() : { ok: true }; })
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "寫入失敗");
-          setSyncStatus("雲端：已存檔", "sync-ok");
+          setSyncStatus("雲端：已存檔 " + formatTimeHM(new Date()), "sync-ok");
         })
         .catch(function (err) {
           setSyncStatus("雲端：寫入失敗", "sync-err");
@@ -785,7 +827,7 @@
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "名單寫入失敗");
-          setSyncStatus("雲端：名單已同步", "sync-ok");
+          setSyncStatus("雲端：名單已同步 " + formatTimeHM(new Date()), "sync-ok");
         })
         .catch(function (err) {
           setSyncStatus("雲端：寫入失敗", "sync-err");
@@ -811,7 +853,7 @@
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "全店同步失敗");
-          setSyncStatus("雲端：全店已同步", "sync-ok");
+          setSyncStatus("雲端：全店已同步 " + formatTimeHM(new Date()), "sync-ok");
         })
         .catch(function () {
           setSyncStatus("雲端：同步失敗", "sync-err");
@@ -890,6 +932,8 @@
       session = { role: "staff", name: matched.name };
       selectedPerson = matched.name;
       document.getElementById("staffPinInput").value = "";
+      loadStateForCurrentSession();
+      selectedPerson = matched.name;
       saveState();
       applyAuthUI();
       renderAll();
@@ -906,6 +950,7 @@
       }
       session = { role: "admin", name: "排班管理員" };
       document.getElementById("adminPassInput").value = "";
+      loadStateForCurrentSession();
       saveState();
       applyAuthUI();
       renderAll();
@@ -918,7 +963,6 @@
       session = null;
       lastActivityAt = 0;
       clearIdleTimer();
-      saveState();
       applyAuthUI();
       renderAll();
       setAuthMsg("已登出，請重新登入以進行排休。", true);
@@ -1120,13 +1164,14 @@
         return;
       }
       if (!leaves[selectedPerson]) leaves[selectedPerson] = [];
-      var list = leaves[selectedPerson];
+      var list = leaves[selectedPerson].slice();
       var idx = list.indexOf(isoDate);
       if (idx >= 0) list.splice(idx, 1);
       else { list.push(isoDate); list.sort(); }
+      leaves[selectedPerson] = list;
       saveState();
       renderAll();
-      pushPersonToCloud(selectedPerson);
+      pushPersonToCloudSafe(selectedPerson, list);
     }
 
     function clearCurrentPerson() {
@@ -1135,16 +1180,18 @@
       leaves[selectedPerson] = [];
       saveState();
       renderAll();
-      pushPersonToCloud(selectedPerson);
+      pushPersonToCloudSafe(selectedPerson, []);
     }
 
     function clearAllLeaves() {
       if (!session || session.role !== "admin") return;
       if (!confirm("確定要清除全店所有人員的休假紀錄嗎？此動作會同步更新雲端。")) return;
-      Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
-      saveState();
-      renderAll();
-      pushAllToCloud();
+      pullFromCloud(false).then(function () {
+        Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
+        saveState();
+        renderAll();
+        pushAllToCloud();
+      });
     }
 
     function addStaff() {
@@ -1679,7 +1726,7 @@
       URL.revokeObjectURL(url);
     }
 
-    loadState();
+    loadStateForCurrentSession();
     bindIdleActivityListeners();
     applyAuthUI();
     renderAll();
@@ -1691,7 +1738,11 @@
     document.getElementById("startDateInput").onchange = function () {
       saveState();
       renderAll();
-      if (session && session.role === "admin") pushAllToCloud();
+      if (session && session.role === "admin") {
+        pullFromCloud(false).then(function () {
+          pushAllToCloud();
+        });
+      }
     };
 
     document.getElementById("staffIdInput").addEventListener("keydown", function (ev) {
