@@ -164,6 +164,12 @@
       align-items: center;
       margin-bottom: 12px;
     }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
     select, input[type="date"], input[type="text"], input[type="password"] {
       padding: 9px 11px;
       border: 1px solid #94a3b8;
@@ -171,6 +177,7 @@
       font-size: 15px;
       font-family: inherit;
       background: #fff;
+      min-width: 0;
     }
     .btn {
       border: none;
@@ -253,7 +260,7 @@
     }
     .cal-weekdays, .cal-grid {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 5px;
     }
     .cal-weekdays { margin-bottom: 5px; }
@@ -280,9 +287,17 @@
       color: var(--text);
       font-family: inherit;
       touch-action: manipulation;
+      overflow: hidden;
     }
     .day-btn .d-main { font-size: 14px; font-weight: 800; }
-    .day-btn .d-sub { font-size: 11px; margin-top: 2px; text-align: center; line-height: 1.2; }
+    .day-btn .d-sub {
+      font-size: 11px;
+      margin-top: 2px;
+      text-align: center;
+      line-height: 1.2;
+      max-width: 100%;
+      word-break: break-all;
+    }
     .day-btn.out-range {
       background: var(--out-range-bg);
       color: var(--muted);
@@ -298,6 +313,11 @@
     .day-btn.is-leave .d-sub { font-weight: 800; color: #000; }
     .day-btn.block-over {
       box-shadow: inset 0 0 0 2px #7f1d1d;
+    }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 8px;
     }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td {
@@ -352,7 +372,78 @@
       font-weight: 700;
     }
     .mobile-dock { display: none; }
+
     @media (max-width: 768px) {
+      body {
+        padding: 8px 8px calc(76px + var(--safe-bottom)) 8px;
+      }
+      header {
+        padding: 12px;
+      }
+      header h1 {
+        font-size: 16px;
+      }
+      .card {
+        padding: 11px;
+      }
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px;
+      }
+      .toolbar-group {
+        width: 100%;
+      }
+      .toolbar-group select,
+      .toolbar-group input[type="date"] {
+        flex: 1;
+      }
+      .toolbar .btn {
+        width: 100%;
+      }
+      .auth-form input {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+      }
+      .auth-form .btn {
+        flex: 1;
+      }
+      .cal-weekdays, .cal-grid {
+        gap: 3px;
+      }
+      .day-btn {
+        min-height: 54px;
+        padding: 3px 1px;
+        border-radius: 6px;
+      }
+      .day-btn .d-main {
+        font-size: 12.5px;
+      }
+      .day-btn .d-sub {
+        font-size: 9.5px;
+        line-height: 1.15;
+      }
+      #matrixCard th:nth-child(1),
+      #matrixCard td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #ffffff;
+      }
+      #matrixCard th:nth-child(1) {
+        background: var(--slate);
+        z-index: 3;
+      }
+      #matrixCard tr.active-row td:nth-child(1) {
+        background: #fef9c3;
+      }
+      #matrixCard tr.total-row td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #f1f5f9;
+      }
       .mobile-dock {
         display: flex;
         align-items: center;
@@ -412,11 +503,11 @@
     </div>
 
     <div class="toolbar">
-      <div id="adminPersonControl">
+      <div id="adminPersonControl" class="toolbar-group">
         <label for="personSelect" style="font-weight:700;">指定排休人員：</label>
         <select id="personSelect"></select>
       </div>
-      <div>
+      <div class="toolbar-group">
         <label for="startDateInput" style="font-weight:700;">班表起始日（28天）：</label>
         <input type="date" id="startDateInput" />
       </div>
@@ -453,38 +544,38 @@
         <h2>人員名單與休假天數總覽（管理員檢視）</h2>
 
         <div id="addStaffBox" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-          <input type="text" id="newName" placeholder="新增姓名" style="width:105px;" />
+          <input type="text" id="newName" placeholder="新增姓名" style="flex:1;min-width:95px;" />
           <select id="newBlock">
             <option value="1樓">1樓</option>
             <option value="2樓">2樓</option>
             <option value="廠協">廠協</option>
             <option value="店長">店長</option>
           </select>
-          <input type="text" id="newRole" placeholder="職務" style="width:105px;" />
-          <input type="text" id="newEmpId" placeholder="員編" style="width:90px;" />
-          <input type="text" id="newPhone" placeholder="手機" style="width:115px;" />
+          <input type="text" id="newRole" placeholder="職務" style="flex:1;min-width:95px;" />
+          <input type="text" id="newEmpId" placeholder="員編" style="flex:1;min-width:85px;" />
+          <input type="text" id="newPhone" placeholder="手機" style="flex:1;min-width:110px;" />
           <button type="button" class="btn btn-primary" onclick="addStaff()">＋ 新增</button>
         </div>
 
         <div class="edit-staff-panel">
           <div class="edit-staff-title" id="editStaffTitle">修改現有員工資料（點選下方名單列可帶入）</div>
           <div class="edit-staff-row">
-            <input type="text" id="editName" placeholder="姓名" style="width:105px;" />
+            <input type="text" id="editName" placeholder="姓名" style="flex:1;min-width:95px;" />
             <select id="editBlock">
               <option value="1樓">1樓</option>
               <option value="2樓">2樓</option>
               <option value="廠協">廠協</option>
               <option value="店長">店長</option>
             </select>
-            <input type="text" id="editRole" placeholder="職務" style="width:105px;" />
-            <input type="text" id="editEmpId" placeholder="員編" style="width:90px;" />
-            <input type="text" id="editPhone" placeholder="手機" style="width:115px;" />
+            <input type="text" id="editRole" placeholder="職務" style="flex:1;min-width:95px;" />
+            <input type="text" id="editEmpId" placeholder="員編" style="flex:1;min-width:85px;" />
+            <input type="text" id="editPhone" placeholder="手機" style="flex:1;min-width:110px;" />
             <button type="button" class="btn btn-success" onclick="updateStaff()">儲存修改</button>
             <button type="button" class="btn btn-danger" onclick="deleteStaff()">刪除員工</button>
           </div>
         </div>
 
-        <div style="max-height:320px;overflow:auto;">
+        <div class="table-scroll" style="max-height:320px;">
           <table>
             <thead>
               <tr><th>姓名</th><th>區塊</th><th>職務</th><th>天數</th><th>休假日期</th><th>操作</th></tr>
@@ -497,7 +588,7 @@
 
     <div id="matrixCard" class="card">
       <h2>28 天班表休假預覽（管理員總覽 · 顯示 1）</h2>
-      <div style="overflow:auto;">
+      <div class="table-scroll">
         <table>
           <thead><tr id="matrixHeaderRow"></tr></thead>
           <tbody id="matrixBody"></tbody>
@@ -508,7 +599,7 @@
     <div id="leaveStatsCard" class="card" style="display:none;">
       <h2 id="leaveStatsTitle">人員休假天數與日期統計</h2>
       <div id="leaveStatsMeta" class="stats-meta"></div>
-      <div style="overflow:auto;">
+      <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -537,7 +628,7 @@
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
     var IDLE_TIMEOUT_MINUTES = 5;
-    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v11_";
+    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v12_";
 
     var BLOCK_LIMITS = {
       "1樓": 2,
@@ -762,7 +853,6 @@
         });
     }
 
-    // 先抓最新雲端資料，保留其他人的休假，只更新指定 personName 的日期後寫回
     function pushPersonToCloudSafe(personName, updatedDates) {
       if (!isCloudConfigured() || !navigator.onLine) {
         if (!isCloudConfigured()) setSyncStatus("雲端：尚未設定網址", "");
@@ -1017,7 +1107,7 @@
         titleEl.textContent = "目前身分：排班管理員（閒置 " + IDLE_TIMEOUT_MINUTES + " 分鐘自動登出）";
         pill.textContent = "身分：管理員";
         lockBanner.style.display = "none";
-        adminPersonCtrl.style.display = "inline-block";
+        adminPersonCtrl.style.display = "flex";
         clearMineBtn.disabled = false;
         clearAllBtn.style.display = "inline-block";
         summaryCard.style.display = "block";
