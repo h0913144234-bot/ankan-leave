@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#1f3a52" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="南崁店排休" />
@@ -20,6 +21,8 @@
       --muted: #64748b;
       --leave-bg: #ff4d4f;
       --leave-fg: #000000;
+      --warn-bg: #fee2e2;
+      --warn-fg: #991b1b;
       --in-range-bg: #ebf3fa;
       --out-range-bg: #e2e8f0;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -32,7 +35,7 @@
       color: var(--text);
       padding: 12px 12px calc(78px + var(--safe-bottom)) 12px;
     }
-    .container { max-width: 1220px; margin: 0 auto; }
+    .container { max-width: 1260px; margin: 0 auto; }
     header {
       background: var(--navy);
       color: #fff;
@@ -127,6 +130,27 @@
       font-weight: 700;
       margin-bottom: 12px;
     }
+    .rule-banner {
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      color: #1e3a8a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .quota-alert-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+      background: var(--warn-bg);
+      border: 1px solid #f87171;
+      color: var(--warn-fg);
+    }
 
     .toolbar {
       background: var(--card);
@@ -143,7 +167,7 @@
       padding: 9px 11px;
       border: 1px solid #94a3b8;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-family: inherit;
       background: #fff;
     }
@@ -157,7 +181,16 @@
       font-family: inherit;
       touch-action: manipulation;
     }
-    .btn:active { transform: scale(0.97); }
+    .btn-sm {
+      padding: 5px 9px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
     .btn-primary { background: var(--slate); color: #fff; }
     .btn-success { background: #15803d; color: #fff; }
     .btn-danger { background: #dc2626; color: #fff; }
@@ -184,6 +217,25 @@
       color: var(--navy);
       border-bottom: 2px solid #e2e8f0;
       padding-bottom: 6px;
+    }
+    .edit-staff-panel {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .edit-staff-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .edit-staff-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
     }
     .person-banner {
       background: #fef9c3;
@@ -215,7 +267,8 @@
     .day-btn {
       border: 2px solid #94a3b8;
       border-radius: 8px;
-      min-height: 58px;
+      min-height: 62px;
+      padding: 4px 2px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -227,7 +280,7 @@
       touch-action: manipulation;
     }
     .day-btn .d-main { font-size: 14px; font-weight: 800; }
-    .day-btn .d-sub { font-size: 11px; margin-top: 2px; }
+    .day-btn .d-sub { font-size: 11px; margin-top: 2px; text-align: center; line-height: 1.2; }
     .day-btn.out-range {
       background: var(--out-range-bg);
       color: var(--muted);
@@ -241,6 +294,9 @@
       border-color: #991b1b;
     }
     .day-btn.is-leave .d-sub { font-weight: 800; color: #000; }
+    .day-btn.block-over {
+      box-shadow: inset 0 0 0 2px #7f1d1d;
+    }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td {
       border: 1px solid var(--border);
@@ -250,7 +306,13 @@
     }
     th { background: var(--slate); color: #fff; }
     tr.active-row td:first-child { background: #fef9c3; font-weight: 800; }
+    tr.total-row td { background: #f1f5f9; font-weight: 800; color: var(--navy); }
     .leave-cell-mark { background: var(--leave-bg); color: var(--leave-fg); font-weight: 800; }
+    .quota-exceed {
+      background: var(--leave-bg) !important;
+      color: #ffffff !important;
+      font-weight: 800;
+    }
     .summary-box {
       margin-top: 10px;
       font-size: 13px;
@@ -259,6 +321,16 @@
       padding: 10px;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
+    }
+    .empty-date-hint {
+      padding: 20px 12px;
+      text-align: center;
+      background: #f8fafc;
+      border: 1px dashed #94a3b8;
+      border-radius: 8px;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 700;
     }
     .mobile-dock { display: none; }
     @media (max-width: 768px) {
@@ -283,7 +355,7 @@
     <header>
       <div>
         <h1>南崁店 28 天月曆按鈕排休工具</h1>
-        <div class="sub" id="rangeDisplay">班表區間載入中...</div>
+        <div class="sub" id="rangeDisplay">請先設定「班表起始日（28天）」</div>
       </div>
       <div class="header-right">
         <span class="pill" id="sessionPill">尚未登入</span>
@@ -313,7 +385,7 @@
         <button type="button" id="adminLogoutBtn" class="btn btn-secondary" style="display:none;" onclick="logoutUser()">登出</button>
       </div>
 
-      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假會自動同步到雲端試算表，管理員可即時看到全店填寫結果。</div>
+      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假或變更員工資料會自動同步到雲端試算表。</div>
     </div>
 
     <div id="lockBanner" class="lock-banner">
@@ -327,7 +399,7 @@
       </div>
       <div>
         <label for="startDateInput" style="font-weight:700;">班表起始日（28天）：</label>
-        <input type="date" id="startDateInput" value="2026-07-05" />
+        <input type="date" id="startDateInput" />
       </div>
       <button type="button" class="btn btn-secondary" onclick="pullFromCloud(true)">重新整理雲端資料</button>
       <button type="button" id="clearMineBtn" class="btn btn-secondary" onclick="clearCurrentPerson()">清除目前人員休假</button>
@@ -339,6 +411,9 @@
     <div class="grid-main">
       <div class="card">
         <h2>月曆日期按鈕（按一下＝休假「1」）</h2>
+        <div class="rule-banner">
+          休假上限提醒：1樓一天最多休 2 人（超過顯示異常）；2樓一天只能休 1 人（超過顯示異常）。
+        </div>
         <div class="person-banner">
           <div>
             目前人選：<strong id="currentPersonLabel" style="font-size:16px;"></strong>
@@ -352,25 +427,48 @@
         </div>
         <div id="calendarGrid" class="cal-grid"></div>
         <div class="summary-box" id="currentLeaveDatesBox">尚未選擇休假日期</div>
+        <div id="quotaAlertBox" class="quota-alert-box" style="display:none;"></div>
       </div>
 
       <div id="summaryCard" class="card">
         <h2>人員名單與休假天數總覽（管理員檢視）</h2>
+
         <div id="addStaffBox" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-          <input type="text" id="newName" placeholder="新增姓名" style="width:110px;" />
+          <input type="text" id="newName" placeholder="新增姓名" style="width:105px;" />
           <select id="newBlock">
             <option value="1樓">1樓</option>
             <option value="2樓">2樓</option>
             <option value="廠協">廠協</option>
             <option value="店長">店長</option>
           </select>
-          <input type="text" id="newRole" placeholder="職務" style="width:120px;" />
+          <input type="text" id="newRole" placeholder="職務" style="width:105px;" />
+          <input type="text" id="newEmpId" placeholder="員編" style="width:90px;" />
+          <input type="text" id="newPhone" placeholder="手機" style="width:115px;" />
           <button type="button" class="btn btn-primary" onclick="addStaff()">＋ 新增</button>
         </div>
-        <div style="max-height:340px;overflow:auto;">
+
+        <div class="edit-staff-panel">
+          <div class="edit-staff-title" id="editStaffTitle">修改現有員工資料（點選下方名單列可帶入）</div>
+          <div class="edit-staff-row">
+            <input type="text" id="editName" placeholder="姓名" style="width:105px;" />
+            <select id="editBlock">
+              <option value="1樓">1樓</option>
+              <option value="2樓">2樓</option>
+              <option value="廠協">廠協</option>
+              <option value="店長">店長</option>
+            </select>
+            <input type="text" id="editRole" placeholder="職務" style="width:105px;" />
+            <input type="text" id="editEmpId" placeholder="員編" style="width:90px;" />
+            <input type="text" id="editPhone" placeholder="手機" style="width:115px;" />
+            <button type="button" class="btn btn-success" onclick="updateStaff()">儲存修改</button>
+            <button type="button" class="btn btn-danger" onclick="deleteStaff()">刪除員工</button>
+          </div>
+        </div>
+
+        <div style="max-height:320px;overflow:auto;">
           <table>
             <thead>
-              <tr><th>姓名</th><th>區塊</th><th>職務</th><th>天數</th><th>休假日期</th></tr>
+              <tr><th>姓名</th><th>區塊</th><th>職務</th><th>天數</th><th>休假日期</th><th>操作</th></tr>
             </thead>
             <tbody id="staffSummaryBody"></tbody>
           </table>
@@ -397,13 +495,19 @@
   <script>
     var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw1pjfJxkQSi-nB6xWr1dybo47Rh5BqWD2nBfzkt0ubbWwBh7FMVxMLRzXUWXy-yiWsJw/exec";
 
-    var DEFAULT_START = "2026-07-05";
-    var ADMIN_PASS = "021781";
+    var DEFAULT_START = "";
+    var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
-    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v2";
+    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v5";
+
+    var BLOCK_LIMITS = {
+      "1樓": 2,
+      "2樓": 1
+    };
 
     var initialStaff = [
       {"block": "店長", "emp_id": "003279", "name": "呂憲昌", "phone": "0933776016", "role": "店經理"},
+      {"block": "1樓", "emp_id": "031837", "name": "呂冠霆", "phone": "0968373948", "role": ""},
       {"block": "1樓", "emp_id": "023643", "name": "李韋忠", "phone": "0910647959", "role": "Apple副理"},
       {"block": "1樓", "emp_id": "026624", "name": "劉書辰", "phone": "0918228389", "role": "服務專員"},
       {"block": "1樓", "emp_id": "012793", "name": "賴佳良", "phone": "0973911811", "role": "數位通訊副理"},
@@ -420,7 +524,38 @@
     var leaves = {};
     staff.forEach(function (p) { leaves[p.name] = []; });
     var selectedPerson = staff[0].name;
+    var editingOriginalName = staff[0].name;
     var session = null;
+
+    function getThirdChar(name) {
+      var chars = Array.from(String(name || "").trim());
+      if (chars.length >= 3) return chars[2];
+      return chars.length > 0 ? chars[chars.length - 1] : "";
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeXml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function csvCell(val) {
+      var s = String(val == null ? "" : val);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
 
     function isCloudConfigured() {
       return Boolean(APPS_SCRIPT_URL) && APPS_SCRIPT_URL.indexOf("YOUR_DEPLOYMENT_ID") === -1;
@@ -439,7 +574,7 @@
           staff: staff,
           leaves: leaves,
           selectedPerson: selectedPerson,
-          startDate: document.getElementById("startDateInput").value || DEFAULT_START,
+          startDate: document.getElementById("startDateInput").value || "",
           session: session
         }));
       } catch (e) {}
@@ -448,15 +583,34 @@
     function loadState() {
       try {
         var raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        var s = JSON.parse(raw);
-        if (Array.isArray(s.staff) && s.staff.length) staff = s.staff;
-        if (s.leaves && typeof s.leaves === "object") leaves = s.leaves;
-        staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
-        if (s.selectedPerson) selectedPerson = s.selectedPerson;
-        if (s.startDate) document.getElementById("startDateInput").value = s.startDate;
-        if (s.session && s.session.role) session = s.session;
+        if (raw) {
+          var s = JSON.parse(raw);
+          if (Array.isArray(s.staff) && s.staff.length) staff = s.staff;
+          if (s.leaves && typeof s.leaves === "object") leaves = s.leaves;
+          staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
+          if (s.selectedPerson && staff.some(function (p) { return p.name === s.selectedPerson; })) {
+            selectedPerson = s.selectedPerson;
+          } else {
+            selectedPerson = staff[0].name;
+          }
+          if (s.session && s.session.role) session = s.session;
+        }
       } catch (e) {}
+
+      editingOriginalName = selectedPerson;
+      document.getElementById("startDateInput").value = DEFAULT_START || "";
+    }
+
+    function loadStaffToEditor(personName) {
+      var p = staff.find(function (s) { return s.name === personName; });
+      if (!p) return;
+      editingOriginalName = p.name;
+      document.getElementById("editStaffTitle").textContent = "修改現有員工資料（目前編輯：" + p.name + "）";
+      document.getElementById("editName").value = p.name || "";
+      document.getElementById("editBlock").value = p.block || "1樓";
+      document.getElementById("editRole").value = p.role || "";
+      document.getElementById("editEmpId").value = p.emp_id || "";
+      document.getElementById("editPhone").value = p.phone || "";
     }
 
     function pullFromCloud(showToast) {
@@ -473,22 +627,33 @@
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "讀取失敗");
+
+          if (Array.isArray(data.staff) && data.staff.length > 0) {
+            staff = data.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+          }
+
           if (data.leaves && typeof data.leaves === "object") {
             Object.keys(data.leaves).forEach(function (name) {
-              if (name === "銀盺") return;
+              if (name === "銀昕" || name === "銀盺") return;
               leaves[name] = Array.isArray(data.leaves[name]) ? data.leaves[name].slice().sort() : [];
               if (!staff.some(function (s) { return s.name === name; })) {
                 staff.push({ name: name, block: "未分區", role: "", emp_id: "", phone: "" });
               }
             });
           }
-          if (data.startDate) {
-            document.getElementById("startDateInput").value = data.startDate;
+
+          staff.forEach(function (p) { if (!Array.isArray(leaves[p.name])) leaves[p.name] = []; });
+          if (!staff.some(function (p) { return p.name === selectedPerson; })) {
+            selectedPerson = staff[0] ? staff[0].name : "";
           }
+          editingOriginalName = selectedPerson;
+
           saveState();
+          renderPersonSelect();
+          if (session && session.role === "admin") loadStaffToEditor(selectedPerson);
           renderAll();
           setSyncStatus("雲端：已同步", "sync-ok");
-          if (showToast) setAuthMsg("已從 Google 試算表更新最新排休資料。", true);
+          if (showToast) setAuthMsg("已從 Google 試算表更新最新排休與人員資料。", true);
         })
         .catch(function (err) {
           setSyncStatus("雲端：同步失敗", "sync-err");
@@ -524,13 +689,38 @@
         });
     }
 
+    function pushStaffActionToCloud(payloadObj) {
+      if (!isCloudConfigured() || !navigator.onLine) {
+        if (!isCloudConfigured()) setSyncStatus("雲端：尚未設定網址", "");
+        else setSyncStatus("雲端：離線暫存本機", "sync-err");
+        return;
+      }
+      setSyncStatus("雲端：更新名單中...", "sync-busy");
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payloadObj)
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (!data || !data.ok) throw new Error((data && data.error) || "名單寫入失敗");
+          setSyncStatus("雲端：名單已同步", "sync-ok");
+        })
+        .catch(function (err) {
+          setSyncStatus("雲端：寫入失敗", "sync-err");
+          setAuthMsg("同步員工名單至雲端失敗（已先存本機）：" + err.message, false);
+        });
+    }
+
     function pushAllToCloud() {
+      var curStart = document.getElementById("startDateInput").value;
       if (!isCloudConfigured() || !navigator.onLine) return;
       setSyncStatus("雲端：全店同步中...", "sync-busy");
       var body = JSON.stringify({
         action: "sync_all",
+        staff: staff,
         leaves: leaves,
-        startDate: document.getElementById("startDateInput").value || DEFAULT_START
+        startDate: curStart || ""
       });
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
@@ -638,7 +828,7 @@
       applyAuthUI();
       renderAll();
       pullFromCloud(false);
-      setAuthMsg("已登入為「排班管理員」，可查看全店即時排休與匯出班表。", true);
+      setAuthMsg("已登入為「排班管理員」，可新增/修改員工資料、查看全店排休與匯出班表。", true);
     }
 
     function logoutUser() {
@@ -692,7 +882,7 @@
         adminLogoutBtn.style.display = "none";
       } else if (isAdmin) {
         card.classList.add("logged-in");
-        titleEl.textContent = "目前身分：排班管理員（可切換人員、新增人員與匯出全店班表）";
+        titleEl.textContent = "目前身分：排班管理員（可切換人員、新增/修改員工與匯出全店班表）";
         pill.textContent = "身分：管理員";
         lockBanner.style.display = "none";
         adminPersonCtrl.style.display = "inline-block";
@@ -702,14 +892,16 @@
         matrixCard.style.display = "block";
         logoutBtn.style.display = "none";
         adminLogoutBtn.style.display = "inline-block";
+        loadStaffToEditor(selectedPerson);
       }
 
       renderPersonSelect();
     }
 
     function parseLocalDate(isoStr) {
-      var parts = (isoStr || DEFAULT_START).split("-").map(Number);
-      if (parts.length !== 3 || parts.some(isNaN)) return new Date(2026, 6, 5);
+      if (!isoStr) return null;
+      var parts = String(isoStr).split("-").map(Number);
+      if (parts.length !== 3 || parts.some(isNaN)) return null;
       return new Date(parts[0], parts[1] - 1, parts[2]);
     }
     function pad2(n) { return n < 10 ? "0" + n : String(n); }
@@ -719,7 +911,8 @@
 
     function getSchedule28Days() {
       var el = document.getElementById("startDateInput");
-      var startDt = parseLocalDate(el && el.value ? el.value : DEFAULT_START);
+      var startDt = parseLocalDate(el && el.value ? el.value : "");
+      if (!startDt) return [];
       var wdNames = ["日", "一", "二", "三", "四", "五", "六"];
       var arr = [];
       for (var i = 0; i < 28; i++) {
@@ -727,6 +920,24 @@
         arr.push({ dt: d, iso: formatISO(d), md: formatMD(d), wd: wdNames[d.getDay()] });
       }
       return arr;
+    }
+
+    function getDailyBlockLeaves(days28) {
+      var map = {};
+      days28.forEach(function (d) {
+        map[d.iso] = { "1樓": [], "2樓": [] };
+      });
+      staff.forEach(function (p) {
+        var blk = p.block;
+        if (!BLOCK_LIMITS[blk]) return;
+        var pSet = new Set(leaves[p.name] || []);
+        days28.forEach(function (d) {
+          if (pSet.has(d.iso)) {
+            map[d.iso][blk].push(p.name);
+          }
+        });
+      });
+      return map;
     }
 
     function renderPersonSelect() {
@@ -743,6 +954,7 @@
       sel.onchange = function () {
         if (!session || session.role !== "admin") return;
         selectedPerson = sel.value;
+        loadStaffToEditor(selectedPerson);
         saveState();
         renderAll();
       };
@@ -771,6 +983,7 @@
 
     function clearCurrentPerson() {
       if (!canEditPerson(selectedPerson)) return;
+      if (!confirm("確定要清除「" + selectedPerson + "」目前的休假紀錄嗎？")) return;
       leaves[selectedPerson] = [];
       saveState();
       renderAll();
@@ -779,6 +992,7 @@
 
     function clearAllLeaves() {
       if (!session || session.role !== "admin") return;
+      if (!confirm("確定要清除全店所有人員的休假紀錄嗎？此動作會同步更新雲端。")) return;
       Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
       saveState();
       renderAll();
@@ -790,31 +1004,166 @@
       var nEl = document.getElementById("newName");
       var bEl = document.getElementById("newBlock");
       var rEl = document.getElementById("newRole");
+      var eEl = document.getElementById("newEmpId");
+      var pEl = document.getElementById("newPhone");
+
       var name = (nEl.value || "").trim();
-      if (!name) return;
-      if (!staff.some(function (s) { return s.name === name; })) {
-        staff.push({ name: name, block: bEl.value, role: (rEl.value || "").trim(), emp_id: "", phone: "" });
-        leaves[name] = [];
+      if (!name) {
+        setAuthMsg("請先輸入要新增的員工姓名。", false);
+        return;
       }
+      if (staff.some(function (s) { return s.name === name; })) {
+        setAuthMsg("名單中已有「" + name + "」，請改用修改功能。", false);
+        return;
+      }
+
+      var newItem = {
+        name: name,
+        block: bEl.value,
+        role: (rEl.value || "").trim(),
+        emp_id: (eEl.value || "").trim(),
+        phone: (pEl.value || "").trim()
+      };
+
+      staff.push(newItem);
+      if (!Array.isArray(leaves[name])) leaves[name] = [];
       selectedPerson = name;
+
       nEl.value = "";
       rEl.value = "";
+      eEl.value = "";
+      pEl.value = "";
+
+      loadStaffToEditor(name);
       saveState();
       renderPersonSelect();
       renderAll();
-      pushPersonToCloud(name);
+      pushStaffActionToCloud({ action: "add_staff", staffItem: newItem });
+      setAuthMsg("已新增員工「" + name + "」並同步至雲端。", true);
+    }
+
+    function updateStaff() {
+      if (!session || session.role !== "admin") return;
+      var targetIdx = staff.findIndex(function (s) { return s.name === editingOriginalName; });
+      if (targetIdx < 0) {
+        setAuthMsg("請先點選要修改的現有員工。", false);
+        return;
+      }
+
+      var newName = (document.getElementById("editName").value || "").trim();
+      var newBlock = document.getElementById("editBlock").value;
+      var newRole = (document.getElementById("editRole").value || "").trim();
+      var newEmpId = (document.getElementById("editEmpId").value || "").trim();
+      var newPhone = (document.getElementById("editPhone").value || "").trim();
+
+      if (!newName) {
+        setAuthMsg("員工姓名不可為空白。", false);
+        return;
+      }
+
+      var oldName = staff[targetIdx].name;
+      if (newName !== oldName && staff.some(function (s, idx) { return idx !== targetIdx && s.name === newName; })) {
+        setAuthMsg("已有同名員工「" + newName + "」，請使用其他名稱。", false);
+        return;
+      }
+
+      if (newName !== oldName) {
+        var oldDates = Array.isArray(leaves[oldName]) ? leaves[oldName].slice() : [];
+        var existingNewDates = Array.isArray(leaves[newName]) ? leaves[newName].slice() : [];
+        var merged = Array.from(new Set(existingNewDates.concat(oldDates))).sort();
+        leaves[newName] = merged;
+        delete leaves[oldName];
+        if (selectedPerson === oldName) selectedPerson = newName;
+      }
+
+      var updatedItem = {
+        name: newName,
+        block: newBlock,
+        role: newRole,
+        emp_id: newEmpId,
+        phone: newPhone
+      };
+
+      staff[targetIdx] = updatedItem;
+      editingOriginalName = newName;
+      saveState();
+      renderPersonSelect();
+      renderAll();
+      loadStaffToEditor(newName);
+      pushStaffActionToCloud({
+        action: "update_staff",
+        oldName: oldName,
+        staffItem: updatedItem
+      });
+      setAuthMsg("已更新「" + newName + "」的員工資料並同步至雲端。", true);
+    }
+
+    function deleteStaff() {
+      if (!session || session.role !== "admin") return;
+      var targetIdx = staff.findIndex(function (s) { return s.name === editingOriginalName; });
+      if (targetIdx < 0) {
+        setAuthMsg("請先點選要刪除的員工。", false);
+        return;
+      }
+      if (staff.length <= 1) {
+        setAuthMsg("至少需保留一位員工資料。", false);
+        return;
+      }
+      var targetName = staff[targetIdx].name;
+      if (!confirm("確定要從名單移除「" + targetName + "」嗎？此動作會同步更新雲端。")) return;
+
+      staff.splice(targetIdx, 1);
+      delete leaves[targetName];
+      if (selectedPerson === targetName) selectedPerson = staff[0].name;
+      editingOriginalName = selectedPerson;
+
+      saveState();
+      renderPersonSelect();
+      renderAll();
+      loadStaffToEditor(selectedPerson);
+      pushStaffActionToCloud({
+        action: "delete_staff",
+        staffName: targetName
+      });
+      setAuthMsg("已移除員工「" + targetName + "」並同步至雲端。", true);
     }
 
     function renderAll() {
       var days28 = getSchedule28Days();
-      var startDt = days28[0].dt;
-      var endDt = days28[27].dt;
-      document.getElementById("rangeDisplay").textContent = "班表區間：" + days28[0].md + " ~ " + days28[27].md + "（共 28 天）";
+      var grid = document.getElementById("calendarGrid");
+      var box = document.getElementById("currentLeaveDatesBox");
+      var alertBox = document.getElementById("quotaAlertBox");
 
       var targetName = (session && session.role === "staff") ? session.name : selectedPerson;
       var pObj = staff.find(function (s) { return s.name === targetName; }) || staff[0];
+      var targetBlock = pObj.block;
+      var targetLimit = BLOCK_LIMITS[targetBlock] || null;
+
       document.getElementById("currentPersonLabel").textContent = session ? pObj.name : "尚未登入";
       document.getElementById("currentPersonMeta").textContent = session ? ("[" + (pObj.block || "-") + " / " + (pObj.role || "-") + "]") : "";
+
+      if (days28.length < 28) {
+        document.getElementById("rangeDisplay").textContent = "請在上方選擇「班表起始日（28天）」";
+        document.getElementById("currentLeaveCount").textContent = "0";
+        document.getElementById("dockName").textContent = session ? pObj.name : "尚未登入";
+        document.getElementById("dockCount").textContent = "0";
+        grid.className = "";
+        grid.innerHTML = '<div class="empty-date-hint">請先點選上方「班表起始日（28天）」設定日期，系統就會自動產生 28 天排休月曆。</div>';
+        box.textContent = session ? "請先設定班表起始日以查看與點選休假日期" : "請先登入並設定班表起始日";
+        alertBox.style.display = "none";
+        alertBox.innerHTML = "";
+        if (session && session.role === "admin") {
+          document.getElementById("staffSummaryBody").innerHTML = '<tr><td colspan="6">請先設定班表起始日</td></tr>';
+          document.getElementById("matrixHeaderRow").innerHTML = "<th>姓名</th><th>區塊</th>";
+          document.getElementById("matrixBody").innerHTML = '<tr><td colspan="2">請先設定班表起始日</td></tr>';
+        }
+        return;
+      }
+
+      grid.className = "cal-grid";
+      var startDt = days28[0].dt;
+      var endDt = days28[27].dt;
+      document.getElementById("rangeDisplay").textContent = "班表區間：" + days28[0].md + " ~ " + days28[27].md + "（共 28 天）";
 
       var pSet = new Set(leaves[pObj.name] || []);
       var activeLeaves = days28.filter(function (d) { return pSet.has(d.iso); });
@@ -823,32 +1172,82 @@
       document.getElementById("dockName").textContent = session ? pObj.name : "尚未登入";
       document.getElementById("dockCount").textContent = countText;
 
-      var box = document.getElementById("currentLeaveDatesBox");
+      var dailyBlockMap = getDailyBlockLeaves(days28);
+      var anomalies = [];
+      days28.forEach(function (d) {
+        var f1 = dailyBlockMap[d.iso]["1樓"];
+        var f2 = dailyBlockMap[d.iso]["2樓"];
+        if (f1.length > BLOCK_LIMITS["1樓"]) {
+          anomalies.push(d.md + "(" + d.wd + ") 1樓休 " + f1.length + " 人（上限 " + BLOCK_LIMITS["1樓"] + " 人）· 異常：" + f1.join("、"));
+        }
+        if (f2.length > BLOCK_LIMITS["2樓"]) {
+          anomalies.push(d.md + "(" + d.wd + ") 2樓休 " + f2.length + " 人（上限 " + BLOCK_LIMITS["2樓"] + " 人）· 異常：" + f2.join("、"));
+        }
+      });
+
       if (!session) {
         box.textContent = "請先登入個人帳號後查看與點選休假日期";
       } else {
         box.innerHTML = activeLeaves.length === 0
-          ? pObj.name + " 目前尚未點選休假日期"
+          ? escapeHtml(pObj.name) + " 目前尚未點選休假日期"
           : "<strong>已排休日期（顯示 1）：</strong>" + activeLeaves.map(function (d) {
-              return '<span style="display:inline-block;background:#ff4d4f;color:#000;font-weight:800;padding:2px 8px;border-radius:4px;margin:2px;">' + d.md + "(" + d.wd + ")</span>";
+              return '<span style="display:inline-block;background:#ff4d4f;color:#000;font-weight:800;padding:2px 8px;border-radius:4px;margin:2px;">' + escapeHtml(d.md + "(" + d.wd + ")") + "</span>";
             }).join(" ");
       }
 
+      if (session && anomalies.length > 0) {
+        alertBox.style.display = "block";
+        alertBox.innerHTML = "異常提醒：<br>" + anomalies.map(escapeHtml).join("<br>");
+      } else {
+        alertBox.style.display = "none";
+        alertBox.innerHTML = "";
+      }
+
       var calStart = addDays(startDt, -startDt.getDay());
-      var grid = document.getElementById("calendarGrid");
+      var calEnd = addDays(endDt, 6 - endDt.getDay());
+      var totalCells = Math.round((calEnd - calStart) / 86400000) + 1;
       grid.innerHTML = "";
-      for (var i = 0; i < 35; i++) {
+      for (var i = 0; i < totalCells; i++) {
         var d = addDays(calStart, i);
         var iso = formatISO(d);
         var inRange = (d >= startDt && d <= endDt);
         var isLeave = Boolean(session) && inRange && pSet.has(iso);
         var disabled = !inRange || !session;
 
+        var blockOver = false;
+        var subText = "非班表日";
+        if (!inRange) {
+          subText = "非班表日";
+        } else if (!session) {
+          subText = "需先登入";
+        } else {
+          var dayF1 = dailyBlockMap[iso]["1樓"];
+          var dayF2 = dailyBlockMap[iso]["2樓"];
+          if (targetLimit) {
+            var blkNames = (targetBlock === "1樓") ? dayF1 : dayF2;
+            var curBlkCount = blkNames.length;
+            blockOver = curBlkCount > targetLimit;
+            var thirdChars = blkNames.map(getThirdChar).filter(Boolean).join("、");
+            var prefix = isLeave ? "休假(1)" : "點一下休假";
+            if (thirdChars) {
+              subText = prefix + "·" + targetBlock + ":" + thirdChars + (blockOver ? " 異常" : "");
+            } else {
+              subText = prefix + (blockOver ? ("·" + targetBlock + "異常") : "");
+            }
+          } else {
+            var hasAnyOver = (dayF1.length > BLOCK_LIMITS["1樓"]) || (dayF2.length > BLOCK_LIMITS["2樓"]);
+            subText = isLeave ? "休假 (1)" : (hasAnyOver ? "異常" : "點一下休假");
+          }
+        }
+
         var btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "day-btn" + (!inRange ? " out-range" : "") + (isLeave ? " is-leave" : "");
+        btn.className = "day-btn" +
+          (!inRange ? " out-range" : "") +
+          (isLeave ? " is-leave" : "") +
+          (blockOver ? " block-over" : "");
         btn.disabled = disabled;
-        btn.innerHTML = '<span class="d-main">' + formatMD(d) + '</span><span class="d-sub">' + (isLeave ? "休假 (1)" : (inRange ? (session ? "點一下休假" : "需先登入") : "非班表日")) + "</span>";
+        btn.innerHTML = '<span class="d-main">' + formatMD(d) + '</span><span class="d-sub">' + escapeHtml(subText) + "</span>";
         if (!disabled) {
           (function (tIso) { btn.onclick = function () { toggleLeaveDate(tIso); }; })(iso);
         }
@@ -863,35 +1262,100 @@
           var pDates = (leaves[p.name] || []).filter(function (x) { return dayIsoSet.has(x); }).sort();
           var tr = document.createElement("tr");
           if (p.name === selectedPerson) tr.className = "active-row";
-          tr.innerHTML = "<td>" + p.name + "</td><td>" + (p.block || "") + "</td><td>" + (p.role || "") + "</td><td><strong>" + pDates.length + "</strong></td><td>" + (pDates.map(function (x) { return x.slice(5).replace("-", "/"); }).join("、") || "-") + "</td>";
-          tr.onclick = function () { selectedPerson = p.name; saveState(); renderPersonSelect(); renderAll(); };
+          tr.innerHTML =
+            "<td>" + escapeHtml(p.name) + "</td>" +
+            "<td>" + escapeHtml(p.block || "") + "</td>" +
+            "<td>" + escapeHtml(p.role || "") + "</td>" +
+            "<td><strong>" + pDates.length + "</strong></td>" +
+            "<td>" + escapeHtml(pDates.map(function (x) { return x.slice(5).replace("-", "/"); }).join("、") || "-") + "</td>" +
+            '<td><button type="button" class="btn btn-secondary btn-sm">編輯</button></td>';
+          tr.onclick = function () {
+            selectedPerson = p.name;
+            loadStaffToEditor(p.name);
+            saveState();
+            renderPersonSelect();
+            renderAll();
+          };
           tbody.appendChild(tr);
         });
 
         var hRow = document.getElementById("matrixHeaderRow");
-        hRow.innerHTML = "<th>姓名</th><th>區塊</th>" + days28.map(function (d) { return "<th>" + d.md + "<br>" + d.wd + "</th>"; }).join("");
+        hRow.innerHTML = "<th>姓名</th><th>區塊</th>" + days28.map(function (d) {
+          return "<th>" + d.md + "<br>" + d.wd + "</th>";
+        }).join("");
+
+        var dailyCounts = days28.map(function () { return 0; });
         var mBody = document.getElementById("matrixBody");
         mBody.innerHTML = "";
         staff.forEach(function (p) {
           var sSet = new Set(leaves[p.name] || []);
           var tr = document.createElement("tr");
           if (p.name === selectedPerson) tr.className = "active-row";
-          tr.innerHTML = "<td>" + p.name + "</td><td>" + (p.block || "") + "</td>" + days28.map(function (d) {
+          tr.innerHTML = "<td>" + escapeHtml(p.name) + "</td><td>" + escapeHtml(p.block || "") + "</td>" + days28.map(function (d, idx) {
             var has1 = sSet.has(d.iso);
+            if (has1) dailyCounts[idx] += 1;
             return '<td class="' + (has1 ? "leave-cell-mark" : "") + '">' + (has1 ? "1" : "") + "</td>";
           }).join("");
           mBody.appendChild(tr);
         });
+
+        var sumTr = document.createElement("tr");
+        sumTr.className = "total-row";
+        sumTr.innerHTML = '<td colspan="2">當日休假總人數</td>' + dailyCounts.map(function (cnt) {
+          return "<td>" + cnt + "</td>";
+        }).join("");
+        mBody.appendChild(sumTr);
+
+        var f1Tr = document.createElement("tr");
+        f1Tr.className = "total-row";
+        f1Tr.innerHTML = '<td colspan="2">1樓休假（上限2人）</td>' + days28.map(function (d) {
+          var names = dailyBlockMap[d.iso]["1樓"];
+          var cnt = names.length;
+          var over = cnt > BLOCK_LIMITS["1樓"];
+          var thirdStr = names.map(getThirdChar).filter(Boolean).join("、");
+          var label = over ? (cnt + " 異常" + (thirdStr ? "(" + thirdStr + ")" : "")) : (thirdStr || String(cnt));
+          return '<td class="' + (over ? "quota-exceed" : "") + '">' + escapeHtml(label) + "</td>";
+        }).join("");
+        mBody.appendChild(f1Tr);
+
+        var f2Tr = document.createElement("tr");
+        f2Tr.className = "total-row";
+        f2Tr.innerHTML = '<td colspan="2">2樓休假（上限1人）</td>' + days28.map(function (d) {
+          var names = dailyBlockMap[d.iso]["2樓"];
+          var cnt = names.length;
+          var over = cnt > BLOCK_LIMITS["2樓"];
+          var thirdStr = names.map(getThirdChar).filter(Boolean).join("、");
+          var label = over ? (cnt + " 異常" + (thirdStr ? "(" + thirdStr + ")" : "")) : (thirdStr || String(cnt));
+          return '<td class="' + (over ? "quota-exceed" : "") + '">' + escapeHtml(label) + "</td>";
+        }).join("");
+        mBody.appendChild(f2Tr);
       }
     }
 
     function exportExcelSchedule() {
       var days28 = getSchedule28Days();
+      if (days28.length < 28) {
+        alert("請先選擇「班表起始日（28天）」再匯出。");
+        return;
+      }
       var nl = String.fromCharCode(10);
-      var rows = ['<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="休假排班"><Table><Row><Cell><Data ss:Type="String">姓名</Data></Cell><Cell><Data ss:Type="String">區塊</Data></Cell><Cell><Data ss:Type="String">職務</Data></Cell>' + days28.map(function (d) { return '<Cell><Data ss:Type="String">' + d.md + "(" + d.wd + ')</Data></Cell>'; }).join("") + "</Row>"];
+      var rows = [
+        '<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="休假排班"><Table><Row><Cell><Data ss:Type="String">姓名</Data></Cell><Cell><Data ss:Type="String">區塊</Data></Cell><Cell><Data ss:Type="String">職務</Data></Cell>' +
+        days28.map(function (d) { return '<Cell><Data ss:Type="String">' + escapeXml(d.md + "(" + d.wd + ")") + '</Data></Cell>'; }).join("") +
+        "</Row>"
+      ];
       staff.forEach(function (p) {
         var sSet = new Set(leaves[p.name] || []);
-        rows.push("<Row><Cell><Data ss:Type=\"String\">" + p.name + "</Data></Cell><Cell><Data ss:Type=\"String\">" + (p.block || "") + "</Data></Cell><Cell><Data ss:Type=\"String\">" + (p.role || "") + "</Data></Cell>" + days28.map(function (d) { return sSet.has(d.iso) ? '<Cell><Data ss:Type="Number">1</Data></Cell>' : '<Cell><Data ss:Type="String"></Data></Cell>'; }).join("") + "</Row>");
+        rows.push(
+          "<Row>" +
+          '<Cell><Data ss:Type="String">' + escapeXml(p.name) + "</Data></Cell>" +
+          '<Cell><Data ss:Type="String">' + escapeXml(p.block || "") + "</Data></Cell>" +
+          '<Cell><Data ss:Type="String">' + escapeXml(p.role || "") + "</Data></Cell>" +
+          days28.map(function (d) {
+            return sSet.has(d.iso) ? '<Cell><Data ss:Type="Number">1</Data></Cell>' : '<Cell><Data ss:Type="String"></Data></Cell>';
+          }).join("") +
+          "</Row>"
+        );
       });
       rows.push("</Table></Worksheet></Workbook>");
       var blob = new Blob([rows.join(nl)], { type: "application/vnd.ms-excel;charset=utf-8;" });
@@ -905,11 +1369,19 @@
 
     function exportCsv() {
       var days28 = getSchedule28Days();
+      if (days28.length < 28) {
+        alert("請先選擇「班表起始日（28天）」再匯出。");
+        return;
+      }
       var nl = String.fromCharCode(10);
-      var lines = [["姓名", "區塊", "職務"].concat(days28.map(function (d) { return d.md + "(" + d.wd + ")"; })).join(",")];
+      var lines = [
+        ["姓名", "區塊", "職務"].concat(days28.map(function (d) { return d.md + "(" + d.wd + ")"; })).map(csvCell).join(",")
+      ];
       staff.forEach(function (p) {
         var sSet = new Set(leaves[p.name] || []);
-        lines.push([p.name, p.block || "", p.role || ""].concat(days28.map(function (d) { return sSet.has(d.iso) ? "1" : ""; })).join(","));
+        lines.push(
+          [p.name, p.block || "", p.role || ""].concat(days28.map(function (d) { return sSet.has(d.iso) ? "1" : ""; })).map(csvCell).join(",")
+        );
       });
       var blob = new Blob(["\uFEFF" + lines.join(nl)], { type: "text/csv;charset=utf-8;" });
       var url = URL.createObjectURL(blob);
