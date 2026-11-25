@@ -10,6 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="南崁店排休" />
   <link rel="manifest" href="manifest.json" />
   <title>南崁店 28天月曆按鈕排休工具（雲端同步版）</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root {
       --navy: #1f3a52;
@@ -210,6 +211,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 14px;
+      margin-bottom: 12px;
     }
     .card h2 {
       margin: 0 0 10px 0;
@@ -313,6 +315,23 @@
       color: #ffffff !important;
       font-weight: 800;
     }
+    .date-chip {
+      display: inline-block;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      margin: 1px 3px 1px 0;
+      font-size: 12px;
+    }
+    .stats-meta {
+      font-size: 13px;
+      color: #334155;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
     .summary-box {
       margin-top: 10px;
       font-size: 13px;
@@ -385,7 +404,7 @@
         <button type="button" id="adminLogoutBtn" class="btn btn-secondary" style="display:none;" onclick="logoutUser()">登出</button>
       </div>
 
-      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假或變更員工資料會自動同步到雲端試算表。</div>
+      <div id="authMsg" class="auth-msg" style="color:#334155;">提示：每次點選休假或變更員工資料會自動同步到雲端試算表；閒置 5 分鐘未操作會自動登出。</div>
     </div>
 
     <div id="lockBanner" class="lock-banner">
@@ -404,7 +423,7 @@
       <button type="button" class="btn btn-secondary" onclick="pullFromCloud(true)">重新整理雲端資料</button>
       <button type="button" id="clearMineBtn" class="btn btn-secondary" onclick="clearCurrentPerson()">清除目前人員休假</button>
       <button type="button" id="clearAllBtn" class="btn btn-danger" onclick="clearAllLeaves()">清除全部休假</button>
-      <button type="button" class="btn btn-success" onclick="exportExcelSchedule()">匯出 .xls</button>
+      <button type="button" class="btn btn-success" onclick="exportPdfSchedule()">匯出 PDF</button>
       <button type="button" class="btn btn-primary" onclick="exportCsv()">匯出 CSV</button>
     </div>
 
@@ -485,11 +504,30 @@
         </table>
       </div>
     </div>
+
+    <div id="leaveStatsCard" class="card" style="display:none;">
+      <h2 id="leaveStatsTitle">人員休假天數與日期統計</h2>
+      <div id="leaveStatsMeta" class="stats-meta"></div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>區塊</th>
+              <th>職務</th>
+              <th>休假天數</th>
+              <th style="text-align:left;">休假日期明細</th>
+            </tr>
+          </thead>
+          <tbody id="leaveStatsBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="mobile-dock">
     <div><strong id="dockName">尚未登入</strong> · 已排休 <strong id="dockCount" style="color:#fde047;">0</strong> 天</div>
-    <button type="button" class="btn btn-success" style="padding:7px 12px;" onclick="exportExcelSchedule()">匯出 .xls</button>
+    <button type="button" class="btn btn-success" style="padding:7px 12px;" onclick="exportPdfSchedule()">匯出 PDF</button>
   </div>
 
   <script>
@@ -498,7 +536,8 @@
     var DEFAULT_START = "";
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
-    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v5";
+    var IDLE_TIMEOUT_MINUTES = 5;
+    var STORAGE_KEY = "nankan_pwa_gsheet_leave_v10";
 
     var BLOCK_LIMITS = {
       "1樓": 2,
@@ -527,6 +566,56 @@
     var editingOriginalName = staff[0].name;
     var session = null;
 
+    var idleTimer = null;
+    var lastActivityAt = 0;
+
+    function clearIdleTimer() {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
+
+    function expireByIdle() {
+      clearIdleTimer();
+      if (!session) return;
+      session = null;
+      lastActivityAt = 0;
+      applyAuthUI();
+      renderAll();
+      setAuthMsg("您已閒置超過 " + IDLE_TIMEOUT_MINUTES + " 分鐘未操作，系統已自動登出。", false);
+    }
+
+    function resetIdleTimer() {
+      clearIdleTimer();
+      if (!session) return;
+      lastActivityAt = Date.now();
+      idleTimer = setTimeout(function () {
+        expireByIdle();
+      }, IDLE_TIMEOUT_MINUTES * 60 * 1000);
+    }
+
+    function bindIdleActivityListeners() {
+      var events = ["pointerdown", "keydown", "scroll", "touchstart"];
+      events.forEach(function (evtName) {
+        document.addEventListener(evtName, function () {
+          if (session) resetIdleTimer();
+        }, { passive: true });
+      });
+
+      document.addEventListener("visibilitychange", function () {
+        if (!session) return;
+        if (!document.hidden && lastActivityAt > 0) {
+          var elapsed = Date.now() - lastActivityAt;
+          if (elapsed >= IDLE_TIMEOUT_MINUTES * 60 * 1000) {
+            expireByIdle();
+          } else {
+            resetIdleTimer();
+          }
+        }
+      });
+    }
+
     function getThirdChar(name) {
       var chars = Array.from(String(name || "").trim());
       if (chars.length >= 3) return chars[2];
@@ -540,15 +629,6 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
-    }
-
-    function escapeXml(str) {
-      return String(str || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;");
     }
 
     function csvCell(val) {
@@ -574,8 +654,7 @@
           staff: staff,
           leaves: leaves,
           selectedPerson: selectedPerson,
-          startDate: document.getElementById("startDateInput").value || "",
-          session: session
+          startDate: document.getElementById("startDateInput").value || ""
         }));
       } catch (e) {}
     }
@@ -593,10 +672,12 @@
           } else {
             selectedPerson = staff[0].name;
           }
-          if (s.session && s.session.role) session = s.session;
         }
       } catch (e) {}
 
+      session = null;
+      lastActivityAt = 0;
+      clearIdleTimer();
       editingOriginalName = selectedPerson;
       document.getElementById("startDateInput").value = DEFAULT_START || "";
     }
@@ -812,8 +893,9 @@
       saveState();
       applyAuthUI();
       renderAll();
+      resetIdleTimer();
       pullFromCloud(false);
-      setAuthMsg("已登入為「" + matched.name + "」，您現在只能編輯自己的 28 天排休。", true);
+      setAuthMsg("已登入為「" + matched.name + "」，閒置 " + IDLE_TIMEOUT_MINUTES + " 分鐘未操作將自動登出。", true);
     }
 
     function loginAdmin() {
@@ -827,12 +909,15 @@
       saveState();
       applyAuthUI();
       renderAll();
+      resetIdleTimer();
       pullFromCloud(false);
-      setAuthMsg("已登入為「排班管理員」，可新增/修改員工資料、查看全店排休與匯出班表。", true);
+      setAuthMsg("已登入為「排班管理員」，閒置 " + IDLE_TIMEOUT_MINUTES + " 分鐘未操作將自動登出。", true);
     }
 
     function logoutUser() {
       session = null;
+      lastActivityAt = 0;
+      clearIdleTimer();
       saveState();
       applyAuthUI();
       renderAll();
@@ -852,6 +937,7 @@
       var clearAllBtn = document.getElementById("clearAllBtn");
       var summaryCard = document.getElementById("summaryCard");
       var matrixCard = document.getElementById("matrixCard");
+      var leaveStatsCard = document.getElementById("leaveStatsCard");
       var logoutBtn = document.getElementById("logoutBtn");
       var adminLogoutBtn = document.getElementById("adminLogoutBtn");
 
@@ -865,12 +951,13 @@
         clearAllBtn.style.display = "none";
         summaryCard.style.display = "none";
         matrixCard.style.display = "none";
+        leaveStatsCard.style.display = "none";
         logoutBtn.style.display = "none";
         adminLogoutBtn.style.display = "none";
       } else if (isStaff) {
         selectedPerson = session.name;
         card.classList.add("logged-in");
-        titleEl.textContent = "目前登入同仁：" + session.name + "（已鎖定僅可修改自己的排休）";
+        titleEl.textContent = "目前登入同仁：" + session.name + "（閒置 " + IDLE_TIMEOUT_MINUTES + " 分鐘自動登出）";
         pill.textContent = "同仁：" + session.name;
         lockBanner.style.display = "none";
         adminPersonCtrl.style.display = "none";
@@ -878,11 +965,12 @@
         clearAllBtn.style.display = "none";
         summaryCard.style.display = "none";
         matrixCard.style.display = "none";
+        leaveStatsCard.style.display = "block";
         logoutBtn.style.display = "inline-block";
         adminLogoutBtn.style.display = "none";
       } else if (isAdmin) {
         card.classList.add("logged-in");
-        titleEl.textContent = "目前身分：排班管理員（可切換人員、新增/修改員工與匯出全店班表）";
+        titleEl.textContent = "目前身分：排班管理員（閒置 " + IDLE_TIMEOUT_MINUTES + " 分鐘自動登出）";
         pill.textContent = "身分：管理員";
         lockBanner.style.display = "none";
         adminPersonCtrl.style.display = "inline-block";
@@ -890,6 +978,7 @@
         clearAllBtn.style.display = "inline-block";
         summaryCard.style.display = "block";
         matrixCard.style.display = "block";
+        leaveStatsCard.style.display = "block";
         logoutBtn.style.display = "none";
         adminLogoutBtn.style.display = "inline-block";
         loadStaffToEditor(selectedPerson);
@@ -938,6 +1027,65 @@
         });
       });
       return map;
+    }
+
+    function renderLeaveStatsSection(days28, activePersonObj) {
+      var statsCard = document.getElementById("leaveStatsCard");
+      var statsTitle = document.getElementById("leaveStatsTitle");
+      var statsMeta = document.getElementById("leaveStatsMeta");
+      var statsBody = document.getElementById("leaveStatsBody");
+      if (!statsCard || !session) return;
+
+      var dayInfoMap = {};
+      days28.forEach(function (d) { dayInfoMap[d.iso] = d; });
+
+      var targetStaffList = (session.role === "admin") ? staff : [activePersonObj];
+      statsTitle.textContent = (session.role === "admin")
+        ? "人員休假天數與日期統計（全店總覽）"
+        : "個人休假天數與日期統計（" + activePersonObj.name + "）";
+
+      var totalDaysAll = 0;
+      statsBody.innerHTML = "";
+
+      targetStaffList.forEach(function (p) {
+        var matchedDays = (leaves[p.name] || [])
+          .filter(function (iso) { return Boolean(dayInfoMap[iso]); })
+          .sort()
+          .map(function (iso) { return dayInfoMap[iso]; });
+
+        totalDaysAll += matchedDays.length;
+
+        var chipsHtml = matchedDays.length > 0
+          ? matchedDays.map(function (d) {
+              return '<span class="date-chip">' + escapeHtml(d.md + "(" + d.wd + ")") + "</span>";
+            }).join("")
+          : '<span style="color:#64748b;">尚無休假日期</span>';
+
+        var tr = document.createElement("tr");
+        if (p.name === activePersonObj.name && session.role === "admin") {
+          tr.className = "active-row";
+        }
+        tr.innerHTML =
+          "<td>" + escapeHtml(p.name) + "</td>" +
+          "<td>" + escapeHtml(p.block || "-") + "</td>" +
+          "<td>" + escapeHtml(p.role || "-") + "</td>" +
+          "<td><strong style='color:#b91c1c;font-size:14px;'>" + matchedDays.length + "</strong> 天</td>" +
+          "<td style='text-align:left;white-space:normal;'>" + chipsHtml + "</td>";
+        statsBody.appendChild(tr);
+      });
+
+      if (session.role === "admin") {
+        var totalRow = document.createElement("tr");
+        totalRow.className = "total-row";
+        totalRow.innerHTML =
+          "<td colspan='3'>全店合計（共 " + targetStaffList.length + " 人）</td>" +
+          "<td>" + totalDaysAll + " 天</td>" +
+          "<td style='text-align:left;'>班表區間：" + escapeHtml(days28[0].md + " ~ " + days28[27].md) + "</td>";
+        statsBody.appendChild(totalRow);
+        statsMeta.textContent = "統計區間：" + days28[0].md + " ~ " + days28[27].md + "（28天）｜ 共 " + targetStaffList.length + " 位人員、合計休假 " + totalDaysAll + " 天";
+      } else {
+        statsMeta.textContent = "統計區間：" + days28[0].md + " ~ " + days28[27].md + "（28天）｜ 目前已排休 " + totalDaysAll + " 天";
+      }
     }
 
     function renderPersonSelect() {
@@ -1152,6 +1300,10 @@
         box.textContent = session ? "請先設定班表起始日以查看與點選休假日期" : "請先登入並設定班表起始日";
         alertBox.style.display = "none";
         alertBox.innerHTML = "";
+        if (session) {
+          document.getElementById("leaveStatsMeta").textContent = "請先設定「班表起始日（28天）」以統計休假天數與日期。";
+          document.getElementById("leaveStatsBody").innerHTML = '<tr><td colspan="5">請先設定班表起始日</td></tr>';
+        }
         if (session && session.role === "admin") {
           document.getElementById("staffSummaryBody").innerHTML = '<tr><td colspan="6">請先設定班表起始日</td></tr>';
           document.getElementById("matrixHeaderRow").innerHTML = "<th>姓名</th><th>區塊</th>";
@@ -1254,6 +1406,10 @@
         grid.appendChild(btn);
       }
 
+      if (session) {
+        renderLeaveStatsSection(days28, pObj);
+      }
+
       if (session && session.role === "admin") {
         var dayIsoSet = new Set(days28.map(function (x) { return x.iso; }));
         var tbody = document.getElementById("staffSummaryBody");
@@ -1332,39 +1488,170 @@
       }
     }
 
-    function exportExcelSchedule() {
-      var days28 = getSchedule28Days();
-      if (days28.length < 28) {
-        alert("請先選擇「班表起始日（28天）」再匯出。");
-        return;
-      }
-      var nl = String.fromCharCode(10);
-      var rows = [
-        '<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="休假排班"><Table><Row><Cell><Data ss:Type="String">姓名</Data></Cell><Cell><Data ss:Type="String">區塊</Data></Cell><Cell><Data ss:Type="String">職務</Data></Cell>' +
-        days28.map(function (d) { return '<Cell><Data ss:Type="String">' + escapeXml(d.md + "(" + d.wd + ")") + '</Data></Cell>'; }).join("") +
-        "</Row>"
-      ];
+    function renderReportToCanvas(days28) {
+      var dailyBlockMap = getDailyBlockLeaves(days28);
+
+      var headers = ["姓名", "區塊", "職務"].concat(days28.map(function (d) { return d.md + "(" + d.wd + ")"; }));
+      var rows = [];
+      var dailyTotal = days28.map(function () { return 0; });
+
       staff.forEach(function (p) {
         var sSet = new Set(leaves[p.name] || []);
-        rows.push(
-          "<Row>" +
-          '<Cell><Data ss:Type="String">' + escapeXml(p.name) + "</Data></Cell>" +
-          '<Cell><Data ss:Type="String">' + escapeXml(p.block || "") + "</Data></Cell>" +
-          '<Cell><Data ss:Type="String">' + escapeXml(p.role || "") + "</Data></Cell>" +
-          days28.map(function (d) {
-            return sSet.has(d.iso) ? '<Cell><Data ss:Type="Number">1</Data></Cell>' : '<Cell><Data ss:Type="String"></Data></Cell>';
-          }).join("") +
-          "</Row>"
-        );
+        var r = [p.name, p.block || "", p.role || ""];
+        days28.forEach(function (d, idx) {
+          if (sSet.has(d.iso)) {
+            r.push("1");
+            dailyTotal[idx] += 1;
+          } else {
+            r.push("");
+          }
+        });
+        rows.push({ cells: r, type: "staff" });
       });
-      rows.push("</Table></Worksheet></Workbook>");
-      var blob = new Blob([rows.join(nl)], { type: "application/vnd.ms-excel;charset=utf-8;" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "南崁店_休假排班_" + days28[0].iso + ".xls";
-      a.click();
-      URL.revokeObjectURL(url);
+
+      rows.push({ cells: ["當日休假總人數", "", ""].concat(dailyTotal.map(String)), type: "summary" });
+      rows.push({
+        cells: ["1樓休假（上限2人）", "", ""].concat(days28.map(function (d) {
+          var names = dailyBlockMap[d.iso]["1樓"];
+          var thirdStr = names.map(getThirdChar).filter(Boolean).join("、");
+          return names.length > BLOCK_LIMITS["1樓"]
+            ? (names.length + " 異常" + (thirdStr ? "(" + thirdStr + ")" : ""))
+            : (thirdStr || String(names.length));
+        })),
+        type: "f1"
+      });
+      rows.push({
+        cells: ["2樓休假（上限1人）", "", ""].concat(days28.map(function (d) {
+          var names = dailyBlockMap[d.iso]["2樓"];
+          var thirdStr = names.map(getThirdChar).filter(Boolean).join("、");
+          return names.length > BLOCK_LIMITS["2樓"]
+            ? (names.length + " 異常" + (thirdStr ? "(" + thirdStr + ")" : ""))
+            : (thirdStr || String(names.length));
+        })),
+        type: "f2"
+      });
+
+      var colWidths = [88, 56, 92];
+      for (var i = 0; i < 28; i++) colWidths.push(58);
+      var tableW = colWidths.reduce(function (a, b) { return a + b; }, 0);
+      var padX = 28;
+      var canvasW = tableW + padX * 2;
+
+      var rowH = 30;
+      var headerH = 40;
+      var titleBlockH = 74;
+      var matrixH = headerH + rows.length * rowH;
+      var canvasH = titleBlockH + matrixH + 32;
+
+      var scale = 2;
+      var canvas = document.createElement("canvas");
+      canvas.width = canvasW * scale;
+      canvas.height = canvasH * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      ctx.fillStyle = "#1f3a52";
+      ctx.font = "bold 22px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
+      ctx.fillText("南崁店 28 天休假排班表（" + days28[0].md + " ~ " + days28[27].md + "）", padX, 32);
+
+      ctx.fillStyle = "#475569";
+      ctx.font = "13px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
+      ctx.fillText("匯出日期：" + formatISO(new Date()) + " ｜ 1樓上限 2 人、2樓上限 1 人（紅底為休假「1」或超額異常）", padX, 55);
+
+      var y = titleBlockH;
+      var x = padX;
+      ctx.font = "bold 12px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
+      headers.forEach(function (h, idx) {
+        var w = colWidths[idx];
+        ctx.fillStyle = "#2c5282";
+        ctx.fillRect(x, y, w, headerH);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, w, headerH);
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(h, x + w / 2, y + headerH / 2);
+        x += w;
+      });
+      y += headerH;
+
+      rows.forEach(function (rObj) {
+        x = padX;
+        rObj.cells.forEach(function (val, cIdx) {
+          var w = colWidths[cIdx];
+          var txt = String(val == null ? "" : val);
+          var isOver = txt.indexOf("異常") >= 0;
+          var isLeaveCell = rObj.type === "staff" && cIdx >= 3 && txt === "1";
+
+          if (isOver) {
+            ctx.fillStyle = "#dc2626";
+          } else if (isLeaveCell) {
+            ctx.fillStyle = "#ff4d4f";
+          } else if (rObj.type !== "staff") {
+            ctx.fillStyle = "#f1f5f9";
+          } else {
+            ctx.fillStyle = "#ffffff";
+          }
+          ctx.fillRect(x, y, w, rowH);
+
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.strokeRect(x, y, w, rowH);
+
+          ctx.fillStyle = isOver ? "#ffffff" : (rObj.type !== "staff" ? "#1f3a52" : "#0f172a");
+          ctx.font = (isLeaveCell || isOver || rObj.type !== "staff" || cIdx === 0)
+            ? "bold 12px 'Microsoft JhengHei', 'PingFang TC', sans-serif"
+            : "12px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(txt, x + w / 2, y + rowH / 2);
+          x += w;
+        });
+        y += rowH;
+      });
+
+      return canvas;
+    }
+
+    function exportPdfSchedule() {
+      var days28 = getSchedule28Days();
+      if (days28.length < 28) {
+        alert("請先選擇「班表起始日（28天）」再匯出 PDF。");
+        return;
+      }
+
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        exportCsv();
+        return;
+      }
+
+      var canvas = renderReportToCanvas(days28);
+      var imgData = canvas.toDataURL("image/png");
+      var jsPDF = window.jspdf.jsPDF;
+      var orientation = canvas.width >= canvas.height ? "landscape" : "portrait";
+      var doc = new jsPDF({ orientation: orientation, unit: "pt", format: "a3" });
+
+      var pageW = doc.internal.pageSize.getWidth();
+      var pageH = doc.internal.pageSize.getHeight();
+      var margin = 20;
+      var usableW = pageW - margin * 2;
+      var usableH = pageH - margin * 2;
+
+      var ratio = canvas.width / canvas.height;
+      var drawW = usableW;
+      var drawH = drawW / ratio;
+      if (drawH > usableH) {
+        drawH = usableH;
+        drawW = drawH * ratio;
+      }
+
+      var offsetX = (pageW - drawW) / 2;
+      var offsetY = (pageH - drawH) / 2;
+      doc.addImage(imgData, "PNG", offsetX, offsetY, drawW, drawH);
+      doc.save("南崁店_休假排班_" + days28[0].iso + ".pdf");
     }
 
     function exportCsv() {
@@ -1393,6 +1680,7 @@
     }
 
     loadState();
+    bindIdleActivityListeners();
     applyAuthUI();
     renderAll();
     if (isCloudConfigured()) {
