@@ -16,9 +16,9 @@
       --bg-top: #edf6ff;
       --bg-mid: #e2effd;
       --bg-bot: #f4f8ff;
-      --glass: rgba(255, 255, 255, 0.58);
-      --glass-strong: rgba(255, 255, 255, 0.8);
-      --glass-soft: rgba(244, 250, 255, 0.52);
+      --glass: rgba(255, 255, 255, 0.88);
+      --glass-strong: rgba(255, 255, 255, 0.96);
+      --glass-soft: rgba(244, 250, 255, 0.86);
       --glass-border: rgba(255, 255, 255, 0.95);
       --cyan: #0284c7;
       --cyan-glow: #0ea5e9;
@@ -55,7 +55,6 @@
         radial-gradient(circle at 76% 68%, var(--violet-glow), transparent 48%),
         radial-gradient(circle at 22% 82%, var(--rose-glow), transparent 46%),
         linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 52%, var(--bg-bot) 100%);
-      background-attachment: fixed;
       color: var(--text);
       padding: 12px 12px calc(78px + var(--safe-bottom)) 12px;
       min-height: 100vh;
@@ -70,8 +69,6 @@
 
     header {
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(224, 242, 254, 0.62), rgba(240, 253, 250, 0.64));
-      backdrop-filter: blur(22px) saturate(155%);
-      -webkit-backdrop-filter: blur(22px) saturate(155%);
       border: 1px solid var(--glass-border);
       box-shadow: var(--shadow-glass);
       color: var(--text);
@@ -102,6 +99,7 @@
 
     header::after {
       content: "";
+      pointer-events: none;
       position: absolute;
       left: 0;
       right: 0;
@@ -158,8 +156,6 @@
       padding: 6px 12px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.74);
-      backdrop-filter: blur(14px) saturate(145%);
-      -webkit-backdrop-filter: blur(14px) saturate(145%);
       border: 1px solid rgba(255, 255, 255, 0.92);
       color: #0f172a;
       display: inline-flex;
@@ -209,8 +205,6 @@
 
     .auth-card {
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(240, 249, 255, 0.56));
-      backdrop-filter: blur(20px) saturate(150%);
-      -webkit-backdrop-filter: blur(20px) saturate(150%);
       border: 1px solid var(--glass-border);
       box-shadow: var(--shadow-glass);
       border-radius: 18px;
@@ -246,8 +240,6 @@
     .auth-tabs {
       display: inline-flex;
       background: rgba(224, 242, 254, 0.72);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.9);
       padding: 3px;
       border-radius: 11px;
@@ -287,8 +279,6 @@
 
     .lock-banner {
       background: linear-gradient(135deg, rgba(240, 249, 255, 0.84), rgba(224, 242, 254, 0.74));
-      backdrop-filter: blur(16px) saturate(145%);
-      -webkit-backdrop-filter: blur(16px) saturate(145%);
       border: 1px solid rgba(255, 255, 255, 0.92);
       box-shadow: 0 8px 22px rgba(2, 132, 199, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
       color: #075985;
@@ -301,8 +291,6 @@
 
     .deadline-banner {
       background: linear-gradient(135deg, rgba(254, 226, 226, 0.85), rgba(255, 237, 213, 0.78));
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(248, 113, 113, 0.55);
       color: #991b1b;
       border-radius: 12px;
@@ -315,8 +303,6 @@
 
     .queue-banner {
       background: linear-gradient(135deg, rgba(254, 249, 195, 0.85), rgba(254, 243, 199, 0.78));
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(245, 158, 11, 0.55);
       color: #92400e;
       border-radius: 12px;
@@ -333,8 +319,6 @@
 
     .rule-banner {
       background: linear-gradient(135deg, rgba(224, 242, 254, 0.72), rgba(224, 231, 255, 0.58));
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.88);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
       color: #075985;
@@ -352,8 +336,6 @@
 
     .floor-board-box {
       background: linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(224, 242, 254, 0.76));
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.92);
       border-radius: 12px;
       padding: 9px 12px;
@@ -366,8 +348,6 @@
 
     .mode-switch-bar {
       background: rgba(255, 255, 255, 0.68);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.9);
       border-radius: 12px;
       padding: 8px 12px;
@@ -444,8 +424,6 @@
 
     .toolbar {
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(235, 246, 255, 0.56));
-      backdrop-filter: blur(20px) saturate(150%);
-      -webkit-backdrop-filter: blur(20px) saturate(150%);
       border: 1px solid var(--glass-border);
       box-shadow: var(--shadow-glass);
       border-radius: 16px;
@@ -472,8 +450,6 @@
       font-size: 15px;
       font-family: inherit;
       background: var(--glass-strong);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       color: var(--text);
       min-width: 0;
       max-width: 100%;
@@ -542,8 +518,6 @@
 
     .btn-secondary {
       background: rgba(255, 255, 255, 0.76);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border-color: rgba(255, 255, 255, 0.92);
       color: #1e293b;
       box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95);
@@ -584,8 +558,6 @@
 
     .card {
       background: linear-gradient(145deg, rgba(255, 255, 255, 0.64), rgba(242, 249, 255, 0.54));
-      backdrop-filter: blur(22px) saturate(155%);
-      -webkit-backdrop-filter: blur(22px) saturate(155%);
       border: 1px solid var(--glass-border);
       box-shadow: var(--shadow-glass);
       border-radius: 18px;
@@ -628,8 +600,6 @@
 
     .edit-staff-panel {
       background: var(--glass-soft);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 255, 255, 0.88);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
       border-radius: 14px;
@@ -653,8 +623,6 @@
 
     .person-banner {
       background: linear-gradient(135deg, rgba(224, 242, 254, 0.72), rgba(204, 251, 241, 0.66), rgba(237, 233, 254, 0.56));
-      backdrop-filter: blur(16px) saturate(150%);
-      -webkit-backdrop-filter: blur(16px) saturate(150%);
       border: 1px solid rgba(255, 255, 255, 0.92);
       box-shadow: 0 6px 18px rgba(14, 165, 233, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
       border-radius: 14px;
@@ -679,8 +647,6 @@
 
     .cal-wd {
       background: rgba(219, 234, 254, 0.76);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.9);
       color: #0c4a6e;
       text-align: center;
@@ -707,8 +673,6 @@
       justify-content: center;
       cursor: pointer;
       background: linear-gradient(145deg, rgba(224, 242, 254, 0.66), rgba(255, 255, 255, 0.56));
-      backdrop-filter: blur(14px) saturate(145%);
-      -webkit-backdrop-filter: blur(14px) saturate(145%);
       color: var(--text);
       font-family: inherit;
       touch-action: manipulation;
@@ -782,8 +746,6 @@
 
     .day-btn.out-range {
       background: var(--out-range-bg);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
       color: var(--muted);
       border-color: rgba(255, 255, 255, 0.65);
       border-style: dashed;
@@ -831,8 +793,6 @@
       border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.9);
       background: rgba(255, 255, 255, 0.68);
-      backdrop-filter: blur(18px) saturate(145%);
-      -webkit-backdrop-filter: blur(18px) saturate(145%);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
     }
 
@@ -909,8 +869,6 @@
       font-size: 13px;
       line-height: 1.65;
       background: var(--glass-soft);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.88);
@@ -923,8 +881,6 @@
       padding: 20px 12px;
       text-align: center;
       background: var(--glass-soft);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       border: 1px dashed rgba(2, 132, 199, 0.45);
       border-radius: 14px;
       color: #0369a1;
@@ -1032,14 +988,69 @@
         right: 0;
         bottom: 0;
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(224, 242, 254, 0.72));
-        backdrop-filter: blur(22px) saturate(155%);
-        -webkit-backdrop-filter: blur(22px) saturate(155%);
-        border-top: 1px solid rgba(255, 255, 255, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.95);
         box-shadow: 0 -8px 24px rgba(14, 165, 233, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
         color: #0f172a;
         padding: 10px 14px calc(10px + var(--safe-bottom)) 14px;
         z-index: 50;
       }
+    }
+
+    .day-btn.block-over {
+      background: linear-gradient(145deg, rgba(254, 226, 226, 0.95), rgba(254, 202, 202, 0.92)) !important;
+      border: 2px solid #dc2626 !important;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25), 0 6px 16px rgba(220, 38, 38, 0.28) !important;
+      color: #7f1d1d !important;
+    }
+
+    .day-btn.block-over .d-main {
+      color: #991b1b !important;
+    }
+
+    .day-btn.block-over .d-sub {
+      color: #b91c1c !important;
+      font-weight: 800 !important;
+    }
+
+    .day-btn.block-over.is-leave {
+      background: linear-gradient(135deg, #b91c1c, #991b1b) !important;
+      border: 2.5px solid #fef08a !important;
+      color: #ffffff !important;
+    }
+
+    .day-btn.block-over.is-leave .d-main,
+    .day-btn.block-over.is-leave .d-sub {
+      color: #fef08a !important;
+    }
+
+    .day-btn.block-over.is-special {
+      background: linear-gradient(135deg, #0f766e, #991b1b) !important;
+      border: 2.5px solid #fef08a !important;
+      color: #ffffff !important;
+    }
+
+    .day-btn.block-over.is-special .d-main,
+    .day-btn.block-over.is-special .d-sub {
+      color: #fef08a !important;
+    }
+
+    .conflict-alert-banner {
+      background: linear-gradient(135deg, rgba(254, 226, 226, 0.96), rgba(254, 202, 202, 0.92));
+      border: 1.5px solid #dc2626;
+      box-shadow: 0 6px 18px rgba(220, 38, 38, 0.18);
+      color: #991b1b;
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      line-height: 1.6;
+      display: none;
+    }
+
+    button, input, select, .btn, .auth-tab, .mode-btn, .day-btn {
+      pointer-events: auto;
+      touch-action: manipulation;
     }
   </style>
 </head>
@@ -1147,6 +1158,7 @@
         </div>
 
         <div id="floorScheduleBoard" class="floor-board-box"></div>
+        <div id="conflictAlertBanner" class="conflict-alert-banner"></div>
 
         <div class="mode-switch-bar">
           <span class="mode-switch-label">目前點選假別：</span>
@@ -2155,6 +2167,28 @@
           saveState();
           renderAll();
 
+          var mergedStaffObj = staff.find(function (s) { return s.name === cleanPersonName; });
+          var mergedNormBlk = mergedStaffObj ? normalizeBlockName(mergedStaffObj.block) : "";
+          var mergedLimit = BLOCK_LIMITS[mergedNormBlk];
+          if (mergedLimit) {
+            var conflictDates = [];
+            var personDates = (leaves[cleanPersonName] || []).concat(specialLeaves[cleanPersonName] || []);
+            personDates.forEach(function (dIso) {
+              var sameBlk = staff.filter(function (s) {
+                if (normalizeBlockName(s.block) !== mergedNormBlk) return false;
+                var hasL = Array.isArray(leaves[s.name]) && leaves[s.name].indexOf(dIso) >= 0;
+                var hasS = Array.isArray(specialLeaves[s.name]) && specialLeaves[s.name].indexOf(dIso) >= 0;
+                return hasL || hasS;
+              });
+              if (sameBlk.length > mergedLimit && conflictDates.indexOf(dIso) < 0) {
+                conflictDates.push(dIso.slice(5).replace("-", "/") + "(" + sameBlk.map(function (s) { return s.name; }).join("、") + ")");
+              }
+            });
+            if (conflictDates.length > 0) {
+              setAuthMsg("⚠️ 雲端同步後發現【" + mergedNormBlk + "】超過每日上限（" + mergedLimit + "人）：" + conflictDates.join("；"), false);
+            }
+          }
+
           return fetch(APPS_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -2466,6 +2500,13 @@
       return arr;
     }
 
+    function normalizeBlockName(blk) {
+      var s = String(blk || "").trim().toUpperCase();
+      if (s === "1樓" || s === "1F" || s === "一樓") return "1樓";
+      if (s === "2樓" || s === "2F" || s === "二樓") return "2樓";
+      return String(blk || "").trim();
+    }
+
     function getDailyAllLeaves(days28) {
       var map = {};
       days28.forEach(function (d) {
@@ -2477,19 +2518,20 @@
       });
 
       staff.forEach(function (p) {
-        var blk = p.block || "";
+        var rawBlk = p.block || "";
+        var normBlk = normalizeBlockName(rawBlk);
         days28.forEach(function (d) {
           var isL = Array.isArray(leaves[p.name]) && leaves[p.name].indexOf(d.iso) >= 0;
           var isS = Array.isArray(specialLeaves[p.name]) && specialLeaves[p.name].indexOf(d.iso) >= 0;
           if (isL || isS) {
             var entry = {
               name: p.name,
-              block: blk,
+              block: normBlk || rawBlk,
               typeLabel: isS ? "特" : "休"
             };
             map[d.iso].all.push(entry);
-            if (BLOCK_LIMITS[blk]) {
-              map[d.iso][blk].push(entry);
+            if (BLOCK_LIMITS[normBlk]) {
+              map[d.iso][normBlk].push(entry);
             }
           }
         });
@@ -2503,12 +2545,51 @@
       var names = blkEntries.map(function (x) {
         return x.name + "(" + x.typeLabel + ")";
       }).join("、");
-      var statusTag = remain <= 0
-        ? '<span style="color:#dc2626;font-weight:800;">[已滿]</span>'
-        : ('<span style="color:#0d9488;font-weight:700;">[可再休' + remain + '人]</span>');
-      return '<span style="display:inline-block;margin-right:8px;"><strong>' +
+      var statusTag = "";
+      if (remain < 0) {
+        statusTag = '<span style="background:#dc2626;color:#ffffff;font-weight:800;padding:1px 6px;border-radius:5px;">[⚠️異常超額 ' + blkEntries.length + '/' + limit + '人]</span>';
+      } else if (remain === 0) {
+        statusTag = '<span style="color:#dc2626;font-weight:800;">[已滿 ' + blkEntries.length + '/' + limit + '人]</span>';
+      } else {
+        statusTag = '<span style="color:#0d9488;font-weight:700;">[可再休' + remain + '人]</span>';
+      }
+      return '<span style="display:inline-block;margin-right:8px;margin-bottom:2px;"><strong>' +
         escapeHtml(d.md + "(" + d.wd + ")") + "</strong> " +
         escapeHtml(names) + " " + statusTag + "</span>";
+    }
+
+    function renderConflictAlertBanner(days28, dailyMap) {
+      var banner = document.getElementById("conflictAlertBanner");
+      if (!banner) return;
+      if (!days28 || days28.length < 28 || !dailyMap) {
+        banner.style.display = "none";
+        banner.innerHTML = "";
+        return;
+      }
+
+      var conflicts = [];
+      days28.forEach(function (d) {
+        var e1 = dailyMap[d.iso]["1樓"] || [];
+        var e2 = dailyMap[d.iso]["2樓"] || [];
+        if (e1.length > BLOCK_LIMITS["1樓"]) {
+          var names1 = e1.map(function (x) { return x.name + "(" + x.typeLabel + ")"; }).join("、");
+          conflicts.push("• " + d.md + "(" + d.wd + ")【1樓重複超額】共 " + e1.length + " 人（上限 2 人）：" + names1);
+        }
+        if (e2.length > BLOCK_LIMITS["2樓"]) {
+          var names2 = e2.map(function (x) { return x.name + "(" + x.typeLabel + ")"; }).join("、");
+          conflicts.push("• " + d.md + "(" + d.wd + ")【2樓重複超額】共 " + e2.length + " 人（上限 1 人）：" + names2);
+        }
+      });
+
+      if (conflicts.length > 0) {
+        banner.style.display = "block";
+        banner.innerHTML =
+          "<div>⚠️ 偵測到樓層排休人數重複超額異常（請協調調整）：</div>" +
+          conflicts.map(function (line) { return "<div>" + escapeHtml(line) + "</div>"; }).join("");
+      } else {
+        banner.style.display = "none";
+        banner.innerHTML = "";
+      }
     }
 
     function renderFloorScheduleBoard(days28, pObj, dailyMap) {
@@ -2520,8 +2601,9 @@
         return;
       }
 
-      if (session && pObj && BLOCK_LIMITS[pObj.block]) {
-        var blk = pObj.block;
+      var normPBlock = pObj ? normalizeBlockName(pObj.block) : "";
+      if (session && pObj && BLOCK_LIMITS[normPBlock]) {
+        var blk = normPBlock;
         var limit = BLOCK_LIMITS[blk];
         var offDays = [];
         days28.forEach(function (d) {
@@ -2704,10 +2786,30 @@
         }
       }
 
+      var isAdding = (lList.indexOf(isoDate) >= 0) || (sList.indexOf(isoDate) >= 0);
       leaves[selectedPerson] = normalizeDateArray(lList);
       specialLeaves[selectedPerson] = normalizeDateArray(sList);
       saveState();
       renderAll();
+
+      if (isAdding) {
+        var curStaffObj = staff.find(function (s) { return s.name === selectedPerson; });
+        var curNormBlk = curStaffObj ? normalizeBlockName(curStaffObj.block) : "";
+        var blkLimit = BLOCK_LIMITS[curNormBlk];
+        if (blkLimit) {
+          var sameBlkOff = staff.filter(function (s) {
+            if (normalizeBlockName(s.block) !== curNormBlk) return false;
+            var hasL = Array.isArray(leaves[s.name]) && leaves[s.name].indexOf(isoDate) >= 0;
+            var hasS = Array.isArray(specialLeaves[s.name]) && specialLeaves[s.name].indexOf(isoDate) >= 0;
+            return hasL || hasS;
+          });
+          if (sameBlkOff.length > blkLimit) {
+            var whoList = sameBlkOff.map(function (s) { return s.name; }).join("、");
+            setAuthMsg("⚠️ 異常提醒：" + isoDate.slice(5).replace("-", "/") + "【" + curNormBlk + "】已有 " + sameBlkOff.length + " 人排休（" + whoList + "），已超過每日上限 " + blkLimit + " 人！", false);
+          }
+        }
+      }
+
       pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
     }
 
@@ -2943,7 +3045,7 @@
 
       var targetName = (session && session.role === "staff") ? session.name : selectedPerson;
       var pObj = staff.find(function (s) { return s.name === targetName; }) || staff[0] || { name: "", block: "", role: "" };
-      var targetBlock = session ? pObj.block : "";
+      var targetBlock = session ? normalizeBlockName(pObj.block) : "";
       var targetLimit = session ? (BLOCK_LIMITS[targetBlock] || null) : null;
 
       document.getElementById("currentPersonLabel").textContent = session ? pObj.name : "尚未登入（瀏覽模式）";
@@ -2961,6 +3063,7 @@
       }
 
       if (days28.length < 28) {
+        renderConflictAlertBanner([], null);
         renderFloorScheduleBoard([], pObj, null);
         document.getElementById("rangeDisplay").textContent = "請在上方選擇「班表起始日（28天）」或點選「帶入今天」";
         document.getElementById("currentLeaveCount").textContent = "0";
@@ -2994,6 +3097,7 @@
       document.getElementById("rangeDisplay").textContent = "班表區間：" + days28[0].md + " ~ " + days28[27].md + "（共 28 天）";
 
       var dailyMap = getDailyAllLeaves(days28);
+      renderConflictAlertBanner(days28, dailyMap);
       renderFloorScheduleBoard(days28, pObj, dailyMap);
 
       var pSet = new Set(session ? (leaves[pObj.name] || []) : []);
@@ -3073,19 +3177,44 @@
         var hasFloorOff = dayAllEntries.length > 0;
         var subText = "非班表日";
 
+        var dayF1 = (inRange && dailyMap[iso]) ? dailyMap[iso]["1樓"] : [];
+        var dayF2 = (inRange && dailyMap[iso]) ? dailyMap[iso]["2樓"] : [];
+        var f1Over = dayF1.length > BLOCK_LIMITS["1樓"];
+        var f2Over = dayF2.length > BLOCK_LIMITS["2樓"];
+        var anyFloorOver = f1Over || f2Over;
+
+        var overBadgeParts = [];
+        if (f1Over) {
+          var f1Who = dayF1.map(function (x) { return getThirdChar(x.name); }).join("、");
+          overBadgeParts.push("⚠️1樓重複(" + f1Who + ")");
+        }
+        if (f2Over) {
+          var f2Who = dayF2.map(function (x) { return getThirdChar(x.name); }).join("、");
+          overBadgeParts.push("⚠️2樓重複(" + f2Who + ")");
+        }
+        var overAlertText = overBadgeParts.join(" ");
+
         if (!inRange) {
           subText = "非班表日";
         } else if (!session) {
-          subText = allOffSummary ? ("休:" + allOffSummary) : "無人排休";
+          blockOver = anyFloorOver;
+          if (overAlertText) {
+            subText = overAlertText + (allOffSummary ? ("\n休:" + allOffSummary) : "");
+          } else {
+            subText = allOffSummary ? ("休:" + allOffSummary) : "無人排休";
+          }
         } else if (closedForStaff) {
+          blockOver = anyFloorOver;
           var roBase = isSpecial ? "特休(特)·唯讀" : (isLeave ? "休假(1)·唯讀" : "已截止鎖定");
-          subText = allOffSummary ? (roBase + "\n休:" + allOffSummary) : roBase;
+          if (overAlertText) {
+            subText = roBase + "\n" + overAlertText;
+          } else {
+            subText = allOffSummary ? (roBase + "\n休:" + allOffSummary) : roBase;
+          }
         } else if (targetLimit) {
-          var dayF1 = dailyMap[iso]["1樓"];
-          var dayF2 = dailyMap[iso]["2樓"];
           var blkEntries = (targetBlock === "1樓") ? dayF1 : dayF2;
           var curBlkCount = blkEntries.length;
-          blockOver = curBlkCount > targetLimit;
+          blockOver = (curBlkCount > targetLimit) || anyFloorOver;
           fullHint = !isLeave && !isSpecial && (curBlkCount >= targetLimit);
 
           var floorTags = blkEntries.map(function (item) {
@@ -3094,19 +3223,25 @@
           }).filter(Boolean).join("、");
 
           var mySelfTag = isSpecial ? "特休(特)" : (isLeave ? "休假(1)" : (fullHint ? "已滿額" : (entryMode === "special" ? "點特休" : "點休假")));
-          if (floorTags) {
-            subText = mySelfTag + "\n" + targetBlock + ":" + floorTags + (blockOver ? " 額滿" : "");
+          if (curBlkCount > targetLimit) {
+            subText = mySelfTag + "\n⚠️" + targetBlock + "重複(" + floorTags + ")";
+          } else if (overAlertText) {
+            subText = mySelfTag + "\n" + overAlertText;
+          } else if (floorTags) {
+            subText = mySelfTag + "\n" + targetBlock + ":" + floorTags;
           } else if (allOffSummary) {
-            subText = mySelfTag + "\n休:" + allOffSummary + (blockOver ? " 額滿" : "");
+            subText = mySelfTag + "\n休:" + allOffSummary;
           } else {
-            subText = mySelfTag + (blockOver ? ("\n" + targetBlock + "額滿") : "");
+            subText = mySelfTag;
           }
         } else {
-          var anyF1 = dailyMap[iso]["1樓"];
-          var anyF2 = dailyMap[iso]["2樓"];
-          var hasAnyOver = (anyF1.length > BLOCK_LIMITS["1樓"]) || (anyF2.length > BLOCK_LIMITS["2樓"]);
-          var baseTag = isSpecial ? "特休 (特)" : (isLeave ? "休假 (1)" : (hasAnyOver ? "額滿" : (entryMode === "special" ? "點一下特休" : "點一下休假")));
-          subText = allOffSummary ? (baseTag + "\n休:" + allOffSummary) : baseTag;
+          blockOver = anyFloorOver;
+          var baseTag = isSpecial ? "特休 (特)" : (isLeave ? "休假 (1)" : (anyFloorOver ? "⚠️樓層重複" : (entryMode === "special" ? "點一下特休" : "點一下休假")));
+          if (overAlertText) {
+            subText = baseTag + "\n" + overAlertText;
+          } else {
+            subText = allOffSummary ? (baseTag + "\n休:" + allOffSummary) : baseTag;
+          }
         }
 
         var btn = document.createElement("button");
