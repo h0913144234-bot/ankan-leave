@@ -605,6 +605,13 @@
       background: rgba(255, 255, 255, 0.94);
     }
 
+    .row-action-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+    }
+
     .grid-main {
       display: grid;
       grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -1470,7 +1477,7 @@
         <div class="table-scroll" style="max-height:360px;">
           <table>
             <thead>
-              <tr><th>姓名</th><th>區塊</th><th>職務</th><th>休/特天數</th><th>休假與特休日期</th><th>操作</th></tr>
+              <tr><th>姓名</th><th>區塊</th><th>職務</th><th>休/特天數</th><th>休假與特休日期</th><th>位置與操作</th></tr>
             </thead>
             <tbody id="staffSummaryBody"></tbody>
           </table>
@@ -1602,6 +1609,44 @@
       var digits = String(val || "").trim().replace(/[^0-9]/g, "");
       if (!digits) return "";
       return digits.length < 6 ? digits.padStart(6, "0") : digits;
+    }
+
+    function insertNewStaffIntoBlock(list, newItem) {
+      var targetBlock = String((newItem && newItem.block) || "").trim();
+      var copy = list.slice();
+      if (targetBlock === "1樓" || targetBlock === "2樓") {
+        var lastIdxInBlock = -1;
+        for (var i = copy.length - 1; i >= 0; i--) {
+          if (String((copy[i] && copy[i].block) || "").trim() === targetBlock) {
+            lastIdxInBlock = i;
+            break;
+          }
+        }
+        if (lastIdxInBlock >= 0) {
+          copy.splice(lastIdxInBlock + 1, 0, newItem);
+          return copy;
+        }
+      }
+      copy.push(newItem);
+      return copy;
+    }
+
+    function moveStaff(personName, delta) {
+      if (!session || session.role !== "admin") return;
+      var idx = staff.findIndex(function (s) { return s.name === personName; });
+      if (idx < 0) return;
+      var targetIdx = idx + delta;
+      if (targetIdx < 0 || targetIdx >= staff.length) return;
+
+      var temp = staff[idx];
+      staff[idx] = staff[targetIdx];
+      staff[targetIdx] = temp;
+
+      saveState();
+      renderPersonSelect();
+      renderAll();
+      pushAllToCloud();
+      setAuthMsg("已調整「" + personName + "」的位置並同步至雲端。", true);
     }
 
     function setEntryMode(mode) {
@@ -3049,7 +3094,7 @@
         phone: (pEl.value || "").trim()
       };
 
-      staff.push(newItem);
+      staff = insertNewStaffIntoBlock(staff, newItem);
       if (!Array.isArray(leaves[name])) leaves[name] = [];
       if (!Array.isArray(specialLeaves[name])) specialLeaves[name] = [];
       selectedPerson = name;
@@ -3063,8 +3108,8 @@
       saveState();
       renderPersonSelect();
       renderAll();
-      pushStaffActionToCloud({ action: "add_staff", staffItem: newItem });
-      setAuthMsg("已新增員工「" + name + "」並同步至雲端。", true);
+      pushAllToCloud();
+      setAuthMsg("已新增員工「" + name + "」並排入「" + newItem.block + "」位置且同步至雲端。", true);
     }
 
     function updateStaff() {
@@ -3381,7 +3426,7 @@
         var dayIsoSet = new Set(days28.map(function (x) { return x.iso; }));
         var tbody = document.getElementById("staffSummaryBody");
         tbody.innerHTML = "";
-        staff.forEach(function (p) {
+        staff.forEach(function (p, pIdx) {
           var pDates = (leaves[p.name] || []).filter(function (x) { return dayIsoSet.has(x); }).sort();
           var pSpecDates = (specialLeaves[p.name] || []).filter(function (x) { return dayIsoSet.has(x); }).sort();
           var combinedLabels = pDates.map(function (x) { return x.slice(5).replace("-", "/") + "(休)"; })
@@ -3394,8 +3439,49 @@
             "<td>" + escapeHtml(p.block || "") + "</td>" +
             "<td>" + escapeHtml(p.role || "") + "</td>" +
             "<td><strong>" + pDates.length + "</strong>休 / <strong style='color:#0d9488;'>" + pSpecDates.length + "</strong>特</td>" +
-            "<td>" + escapeHtml(combinedLabels.join("、") || "-") + "</td>" +
-            '<td><button type="button" class="btn btn-secondary btn-sm">編輯</button></td>';
+            "<td>" + escapeHtml(combinedLabels.join("、") || "-") + "</td>";
+
+          var opTd = document.createElement("td");
+          var grp = document.createElement("div");
+          grp.className = "row-action-group";
+
+          var upBtn = document.createElement("button");
+          upBtn.type = "button";
+          upBtn.className = "btn btn-secondary btn-sm";
+          upBtn.textContent = "↑";
+          upBtn.title = "往上移一位";
+          upBtn.disabled = (pIdx === 0);
+          upBtn.onclick = function (ev) {
+            ev.stopPropagation();
+            moveStaff(p.name, -1);
+          };
+
+          var downBtn = document.createElement("button");
+          downBtn.type = "button";
+          downBtn.className = "btn btn-secondary btn-sm";
+          downBtn.textContent = "↓";
+          downBtn.title = "往下移一位";
+          downBtn.disabled = (pIdx === staff.length - 1);
+          downBtn.onclick = function (ev) {
+            ev.stopPropagation();
+            moveStaff(p.name, 1);
+          };
+
+          var editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "btn btn-secondary btn-sm";
+          editBtn.textContent = "編輯";
+          editBtn.onclick = function (ev) {
+            ev.stopPropagation();
+            selectPersonByAdmin(p.name);
+          };
+
+          grp.appendChild(upBtn);
+          grp.appendChild(downBtn);
+          grp.appendChild(editBtn);
+          opTd.appendChild(grp);
+          tr.appendChild(opTd);
+
           tr.onclick = function () {
             selectPersonByAdmin(p.name);
           };
