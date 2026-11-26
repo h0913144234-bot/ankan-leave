@@ -301,6 +301,23 @@
       display: none;
     }
 
+    .admin-save-banner {
+      background: linear-gradient(135deg, rgba(254, 243, 199, 0.96), rgba(253, 230, 138, 0.92));
+      border: 1.5px solid #f59e0b;
+      box-shadow: 0 6px 18px rgba(245, 158, 11, 0.22);
+      color: #78350f;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .queue-banner {
       background: linear-gradient(135deg, rgba(254, 249, 195, 0.85), rgba(254, 243, 199, 0.78));
       border: 1px solid rgba(245, 158, 11, 0.55);
@@ -619,6 +636,30 @@
       flex-wrap: wrap;
       gap: 6px;
       align-items: center;
+    }
+
+    .limit-tag-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(2, 132, 199, 0.32);
+      border-radius: 10px;
+      padding: 5px 9px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0c4a6e;
+    }
+
+    .limit-tag-item button {
+      border: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
     }
 
     .person-banner {
@@ -1095,6 +1136,14 @@
 
     <div id="deadlineBanner" class="deadline-banner"></div>
 
+    <div id="adminSaveBanner" class="admin-save-banner">
+      <span id="adminSaveBannerText">您有尚未存檔的班表修改（目前僅暫存於畫面，尚未同步至雲端與其他同仁）。</span>
+      <div style="display:inline-flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-success btn-sm" onclick="saveAdminScheduleChanges()">立即手動存檔</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="discardAdminScheduleChanges()">放棄未存檔修改</button>
+      </div>
+    </div>
+
     <div id="queueBanner" class="queue-banner">
       <span id="queueBannerText">有待同步至雲端的變更</span>
       <button type="button" class="btn btn-primary btn-sm" onclick="flushPendingQueue(true)">立即重試同步</button>
@@ -1127,6 +1176,7 @@
         <input type="date" id="deadlineDateInput" style="padding:7px 9px;font-size:14px;" />
         <button type="button" id="toggleLockBtn" class="btn btn-secondary btn-sm" onclick="toggleScheduleLock()">截止鎖定：關</button>
       </div>
+      <button type="button" id="adminManualSaveBtn" class="btn btn-success" style="display:none;" onclick="saveAdminScheduleChanges()">儲存班表變更</button>
       <button type="button" id="undoBtn" class="btn btn-secondary" onclick="undoLastLeaveChange()" disabled>復原上一步</button>
       <button type="button" class="btn btn-secondary" onclick="pullFromCloud(true)">重新整理雲端資料</button>
       <div class="toolbar-group">
@@ -1153,7 +1203,7 @@
       <div class="card">
         <h2>月曆日期按鈕（休假「1」／特休「特」）</h2>
         <div class="rule-banner">
-          <span>休假上限提醒：1樓一天最多休 2 人；2樓一天只能休 1 人。</span>
+          <span id="blockLimitsRuleText">休假上限提醒：1樓一天最多休 2 人；2樓一天最多休 1 人。</span>
           <span id="targetProgressBadge" class="target-progress">目標：8 天／人</span>
         </div>
 
@@ -1187,6 +1237,26 @@
       </div>
 
       <div id="summaryCard" class="card" style="display:none;">
+        <h2>各區塊／樓層每日休假上限設定（管理員）</h2>
+        <div class="edit-staff-panel" style="margin-bottom:14px;">
+          <div class="edit-staff-title">新增或修改各區塊每日最多可休人數（預設：1樓 2 人、2樓 1 人）</div>
+          <div id="blockLimitsTagList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+          <div class="edit-staff-row">
+            <select id="limitBlockSelect" onchange="onLimitBlockSelectChange()" style="min-width:110px;">
+              <option value="1樓">1樓</option>
+              <option value="2樓">2樓</option>
+              <option value="廠協">廠協</option>
+              <option value="店長">店長</option>
+              <option value="__custom__">自訂區塊名稱...</option>
+            </select>
+            <input type="text" id="limitCustomBlockInput" placeholder="輸入區塊名稱" style="display:none;width:120px;" />
+            <label for="limitMaxInput" style="font-size:13px;font-weight:700;color:#0f172a;">每日最多休：</label>
+            <input type="number" id="limitMaxInput" min="1" max="20" value="2" style="width:74px;padding:7px 9px;font-size:14px;" />
+            <span style="font-size:13px;font-weight:700;color:#475569;">人</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="saveBlockLimitRule()">新增 / 修改上限</button>
+          </div>
+        </div>
+
         <h2>人員名單管理（管理員檢視）</h2>
 
         <div id="addStaffBox" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
@@ -1268,10 +1338,174 @@
     var QUEUE_STORAGE_KEY = STORAGE_PREFIX + "pending_sync_queue";
     var SHARED_ORDER_KEY = STORAGE_PREFIX + "shared_staff_order";
 
+    var DEFAULT_BLOCK_LIMITS = {
+      "1樓": 2,
+      "2樓": 1
+    };
     var BLOCK_LIMITS = {
       "1樓": 2,
       "2樓": 1
     };
+
+    function sanitizeBlockLimitsObj(rawObj) {
+      var res = {};
+      if (rawObj && typeof rawObj === "object") {
+        Object.keys(rawObj).forEach(function (k) {
+          var normK = normalizeBlockName(k);
+          var num = parseInt(rawObj[k], 10);
+          if (normK && !isNaN(num) && num >= 1 && num <= 20) {
+            res[normK] = num;
+          }
+        });
+      }
+      if (Object.keys(res).length === 0) {
+        res = { "1樓": 2, "2樓": 1 };
+      }
+      return res;
+    }
+
+    function getOrderedLimitedBlocks() {
+      var keys = Object.keys(BLOCK_LIMITS || {});
+      var priority = ["1樓", "2樓", "廠協", "店長"];
+      keys.sort(function (a, b) {
+        var ia = priority.indexOf(a);
+        var ib = priority.indexOf(b);
+        if (ia >= 0 && ib >= 0) return ia - ib;
+        if (ia >= 0) return -1;
+        if (ib >= 0) return 1;
+        return a.localeCompare(b, "zh-Hant");
+      });
+      return keys;
+    }
+
+    function formatBlockLimitsRuleSummary() {
+      var keys = getOrderedLimitedBlocks();
+      if (keys.length === 0) return "休假上限提醒：目前未設定區塊人數上限。";
+      var parts = keys.map(function (k) {
+        return k + "一天最多休 " + BLOCK_LIMITS[k] + " 人";
+      });
+      return "休假上限提醒：" + parts.join("；") + "。";
+    }
+
+    function renderBlockLimitsAdminUI() {
+      var ruleEl = document.getElementById("blockLimitsRuleText");
+      if (ruleEl) {
+        ruleEl.textContent = formatBlockLimitsRuleSummary();
+      }
+      var tagList = document.getElementById("blockLimitsTagList");
+      if (!tagList) return;
+      tagList.innerHTML = "";
+      var keys = getOrderedLimitedBlocks();
+      keys.forEach(function (blk) {
+        var maxNum = BLOCK_LIMITS[blk];
+        var item = document.createElement("span");
+        item.className = "limit-tag-item";
+        item.innerHTML =
+          "<span>" + escapeHtml(blk) + "：最多 <strong>" + maxNum + "</strong> 人</span>";
+
+        var editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.style.background = "#e0f2fe";
+        editBtn.style.color = "#0369a1";
+        editBtn.textContent = "帶入修改";
+        editBtn.onclick = function () {
+          selectBlockForLimitEdit(blk);
+        };
+
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "移除";
+        delBtn.title = "移除此區塊人數上限";
+        delBtn.onclick = function () {
+          removeBlockLimitRule(blk);
+        };
+
+        item.appendChild(editBtn);
+        item.appendChild(delBtn);
+        tagList.appendChild(item);
+      });
+    }
+
+    function selectBlockForLimitEdit(blk) {
+      var sel = document.getElementById("limitBlockSelect");
+      var customIn = document.getElementById("limitCustomBlockInput");
+      var maxIn = document.getElementById("limitMaxInput");
+      if (!sel || !maxIn) return;
+      var hasOption = Array.from(sel.options).some(function (o) { return o.value === blk; });
+      if (hasOption) {
+        sel.value = blk;
+        if (customIn) customIn.style.display = "none";
+      } else {
+        sel.value = "__custom__";
+        if (customIn) {
+          customIn.style.display = "inline-block";
+          customIn.value = blk;
+        }
+      }
+      maxIn.value = String(BLOCK_LIMITS[blk] || 1);
+    }
+
+    function onLimitBlockSelectChange() {
+      var sel = document.getElementById("limitBlockSelect");
+      var customIn = document.getElementById("limitCustomBlockInput");
+      var maxIn = document.getElementById("limitMaxInput");
+      if (!sel) return;
+      if (sel.value === "__custom__") {
+        if (customIn) {
+          customIn.style.display = "inline-block";
+          customIn.focus();
+        }
+      } else {
+        if (customIn) customIn.style.display = "none";
+        var norm = normalizeBlockName(sel.value);
+        if (maxIn && BLOCK_LIMITS[norm]) {
+          maxIn.value = String(BLOCK_LIMITS[norm]);
+        }
+      }
+    }
+
+    function saveBlockLimitRule() {
+      if (!session || session.role !== "admin") return;
+      var sel = document.getElementById("limitBlockSelect");
+      var customIn = document.getElementById("limitCustomBlockInput");
+      var maxIn = document.getElementById("limitMaxInput");
+      if (!sel || !maxIn) return;
+
+      var rawBlk = sel.value === "__custom__" ? (customIn ? customIn.value : "") : sel.value;
+      var normBlk = normalizeBlockName(rawBlk);
+      if (!normBlk) {
+        setAuthMsg("請選擇或輸入要設定上限的區塊／樓層名稱。", false);
+        return;
+      }
+      var maxNum = parseInt(maxIn.value, 10);
+      if (isNaN(maxNum) || maxNum < 1 || maxNum > 20) {
+        setAuthMsg("每日最多可休人數請輸入 1 到 20 之間的數字。", false);
+        return;
+      }
+
+      var existed = Object.prototype.hasOwnProperty.call(BLOCK_LIMITS, normBlk);
+      BLOCK_LIMITS[normBlk] = maxNum;
+      if (customIn && sel.value === "__custom__") {
+        customIn.value = "";
+      }
+
+      saveState();
+      renderAll();
+      pushScheduleSettingsToCloud();
+      setAuthMsg("已" + (existed ? "修改" : "新增") + "「" + normBlk + "」每日休假上限為 " + maxNum + " 人，並同步至雲端。", true);
+    }
+
+    function removeBlockLimitRule(blk) {
+      if (!session || session.role !== "admin") return;
+      var normBlk = normalizeBlockName(blk);
+      if (!Object.prototype.hasOwnProperty.call(BLOCK_LIMITS, normBlk)) return;
+      if (!confirm("確定要移除「" + normBlk + "」的每日休假人數上限限制嗎？")) return;
+      delete BLOCK_LIMITS[normBlk];
+      saveState();
+      renderAll();
+      pushScheduleSettingsToCloud();
+      setAuthMsg("已移除「" + normBlk + "」的每日休假人數上限並同步至雲端。", true);
+    }
 
     var EXCLUDED_NAMES = ["銀昕", "銀盺"];
 
@@ -1438,6 +1672,80 @@
     var anchorStartDate = "";
     var undoStack = [];
     var session = null;
+    var adminHasUnsavedChanges = false;
+    var adminUnsavedPeople = new Set();
+
+    function markAdminUnsaved(personName) {
+      if (!session || session.role !== "admin") return;
+      adminHasUnsavedChanges = true;
+      if (personName) adminUnsavedPeople.add(String(personName).trim());
+      updateAdminSaveUI();
+    }
+
+    function clearAdminUnsaved() {
+      adminHasUnsavedChanges = false;
+      adminUnsavedPeople.clear();
+      updateAdminSaveUI();
+    }
+
+    function updateAdminSaveUI() {
+      var isAdmin = session && session.role === "admin";
+      var btn = document.getElementById("adminManualSaveBtn");
+      var banner = document.getElementById("adminSaveBanner");
+      var bannerText = document.getElementById("adminSaveBannerText");
+      if (btn) {
+        btn.style.display = isAdmin ? "inline-block" : "none";
+        btn.disabled = !adminHasUnsavedChanges;
+        btn.textContent = adminHasUnsavedChanges
+          ? ("儲存班表變更（" + Math.max(1, adminUnsavedPeople.size) + "人未存）")
+          : "儲存班表變更（已存檔）";
+      }
+      if (banner) {
+        if (isAdmin && adminHasUnsavedChanges) {
+          banner.style.display = "flex";
+          var namesList = Array.from(adminUnsavedPeople).filter(Boolean);
+          bannerText.textContent = namesList.length > 0
+            ? ("⚠️ 尚有未手動存檔的班表修改（涉及：" + namesList.join("、") + "），請按「儲存班表變更」才會正式生效並同步！")
+            : "⚠️ 尚有未手動存檔的班表修改，請按「儲存班表變更」才會正式生效並同步！";
+        } else {
+          banner.style.display = "none";
+        }
+      }
+    }
+
+    function saveAdminScheduleChanges() {
+      if (!session || session.role !== "admin") return;
+      if (!adminHasUnsavedChanges) {
+        setAuthMsg("目前沒有尚未存檔的班表變更。", true);
+        return;
+      }
+      var changedNames = Array.from(adminUnsavedPeople).filter(Boolean);
+      saveState();
+
+      if (changedNames.length === 0) {
+        pushAllToCloud();
+        clearAdminUnsaved();
+        renderAll();
+        setAuthMsg("已手動存檔並同步所有班表設定至雲端。", true);
+        return;
+      }
+
+      changedNames.forEach(function (name) {
+        pushPersonToCloudSafe(name, leaves[name] || [], specialLeaves[name] || []);
+      });
+      clearAdminUnsaved();
+      renderAll();
+      setAuthMsg("已手動存檔「" + changedNames.join("、") + "」的班表變更並同步至雲端！", true);
+    }
+
+    function discardAdminScheduleChanges() {
+      if (!session || session.role !== "admin") return;
+      if (!adminHasUnsavedChanges) return;
+      if (!confirm("確定要放棄目前尚未手動存檔的班表修改，並重新從雲端載入最新資料嗎？")) return;
+      clearAdminUnsaved();
+      undoStack = [];
+      pullFromCloud(true);
+    }
 
     var idleTimer = null;
     var lastActivityAt = 0;
@@ -1573,10 +1881,16 @@
         loadStaffToEditor(selectedPerson);
       }
       updateUndoButtonState();
-      saveState();
-      renderAll();
-      pushPersonToCloudSafe(snap.personName, leaves[snap.personName], specialLeaves[snap.personName]);
-      setAuthMsg("已復原「" + snap.personName + "」的上一步休假／特休變更。", true);
+      if (session.role === "admin") {
+        markAdminUnsaved(snap.personName);
+        renderAll();
+        setAuthMsg("已復原「" + snap.personName + "」的上一步變更（尚未手動存檔）。", true);
+      } else {
+        saveState();
+        renderAll();
+        pushPersonToCloudSafe(snap.personName, leaves[snap.personName], specialLeaves[snap.personName]);
+        setAuthMsg("已復原「" + snap.personName + "」的上一步休假／特休變更。", true);
+      }
     }
 
     function getPendingQueue() {
@@ -1686,6 +2000,7 @@
       session = null;
       lastActivityAt = 0;
       undoStack = [];
+      clearAdminUnsaved();
       applyAuthUI();
       renderAll();
       setAuthMsg("您已閒置超過 " + IDLE_TIMEOUT_MINUTES + " 分鐘未操作，系統已自動登出。", false);
@@ -1819,6 +2134,7 @@
         scheduleLocked: Boolean(scheduleLocked),
         deadlineDate: String(deadlineDate || ""),
         targetLeaveDays: Number(targetLeaveDays) || 8,
+        blockLimits: BLOCK_LIMITS,
         staffOrder: currentOrder
       };
 
@@ -1911,7 +2227,8 @@
           anchorStartDate: anchorStartDate,
           targetLeaveDays: targetLeaveDays,
           scheduleLocked: scheduleLocked,
-          deadlineDate: deadlineDate
+          deadlineDate: deadlineDate,
+          blockLimits: BLOCK_LIMITS
         }));
       } catch (e) {}
     }
@@ -1955,6 +2272,9 @@
           }
           if (typeof s.deadlineDate === "string") {
             deadlineDate = s.deadlineDate;
+          }
+          if (s.blockLimits && typeof s.blockLimits === "object") {
+            BLOCK_LIMITS = sanitizeBlockLimitsObj(s.blockLimits);
           }
         } else {
           staff = applyStaffOrder(staff, preferredOrder);
@@ -2058,6 +2378,13 @@
         if (tInput) tInput.value = String(targetLeaveDays);
       }
 
+      var cloudLimits = (data.blockLimits && typeof data.blockLimits === "object")
+        ? data.blockLimits
+        : (data.settings && data.settings.blockLimits && typeof data.settings.blockLimits === "object" ? data.settings.blockLimits : null);
+      if (cloudLimits) {
+        BLOCK_LIMITS = sanitizeBlockLimitsObj(cloudLimits);
+      }
+
       ensureLeaveMapsForStaff();
       if (session && session.role === "staff") {
         selectedPerson = session.name;
@@ -2068,6 +2395,12 @@
     }
 
     function pullFromCloud(showToast) {
+      if (session && session.role === "admin" && adminHasUnsavedChanges) {
+        if (showToast) {
+          setAuthMsg("您目前有尚未手動存檔的班表修改，請先按「儲存班表變更」或「放棄未存檔修改」後再重新整理雲端資料。", false);
+        }
+        return Promise.resolve(null);
+      }
       if (!isCloudConfigured()) {
         setSyncStatus("雲端：尚未設定網址", "");
         return Promise.resolve(null);
@@ -2250,7 +2583,8 @@
         startDate: curStart || "",
         scheduleLocked: Boolean(scheduleLocked),
         deadlineDate: String(deadlineDate || ""),
-        targetLeaveDays: Number(targetLeaveDays) || 8
+        targetLeaveDays: Number(targetLeaveDays) || 8,
+        blockLimits: BLOCK_LIMITS
       };
       if (!isCloudConfigured() || !navigator.onLine) {
         enqueueSyncPayload(payload);
@@ -2379,6 +2713,7 @@
       }
       session = { role: "admin", name: "排班管理員" };
       undoStack = [];
+      clearAdminUnsaved();
       document.getElementById("adminPassInput").value = "";
       loadStateForCurrentSession();
       saveState();
@@ -2394,6 +2729,7 @@
       session = null;
       lastActivityAt = 0;
       undoStack = [];
+      clearAdminUnsaved();
       clearIdleTimer();
       applyAuthUI();
       renderAll();
@@ -2469,6 +2805,7 @@
       }
 
       syncLockControlsUI();
+      updateAdminSaveUI();
       renderPersonSelect();
     }
 
@@ -2509,12 +2846,11 @@
 
     function getDailyAllLeaves(days28) {
       var map = {};
+      var limitedBlocks = getOrderedLimitedBlocks();
       days28.forEach(function (d) {
-        map[d.iso] = {
-          all: [],
-          "1樓": [],
-          "2樓": []
-        };
+        var dayObj = { all: [] };
+        limitedBlocks.forEach(function (b) { dayObj[b] = []; });
+        map[d.iso] = dayObj;
       });
 
       staff.forEach(function (p) {
@@ -2531,6 +2867,7 @@
             };
             map[d.iso].all.push(entry);
             if (BLOCK_LIMITS[normBlk]) {
+              if (!map[d.iso][normBlk]) map[d.iso][normBlk] = [];
               map[d.iso][normBlk].push(entry);
             }
           }
@@ -2567,24 +2904,23 @@
         return;
       }
 
+      var limitedBlocks = getOrderedLimitedBlocks();
       var conflicts = [];
       days28.forEach(function (d) {
-        var e1 = dailyMap[d.iso]["1樓"] || [];
-        var e2 = dailyMap[d.iso]["2樓"] || [];
-        if (e1.length > BLOCK_LIMITS["1樓"]) {
-          var names1 = e1.map(function (x) { return x.name + "(" + x.typeLabel + ")"; }).join("、");
-          conflicts.push("• " + d.md + "(" + d.wd + ")【1樓重複超額】共 " + e1.length + " 人（上限 2 人）：" + names1);
-        }
-        if (e2.length > BLOCK_LIMITS["2樓"]) {
-          var names2 = e2.map(function (x) { return x.name + "(" + x.typeLabel + ")"; }).join("、");
-          conflicts.push("• " + d.md + "(" + d.wd + ")【2樓重複超額】共 " + e2.length + " 人（上限 1 人）：" + names2);
-        }
+        limitedBlocks.forEach(function (blk) {
+          var limit = BLOCK_LIMITS[blk];
+          var entries = (dailyMap[d.iso] && dailyMap[d.iso][blk]) || [];
+          if (entries.length > limit) {
+            var namesStr = entries.map(function (x) { return x.name + "(" + x.typeLabel + ")"; }).join("、");
+            conflicts.push("• " + d.md + "(" + d.wd + ")【" + blk + "重複超額】共 " + entries.length + " 人（上限 " + limit + " 人）：" + namesStr);
+          }
+        });
       });
 
       if (conflicts.length > 0) {
         banner.style.display = "block";
         banner.innerHTML =
-          "<div>⚠️ 偵測到樓層排休人數重複超額異常（請協調調整）：</div>" +
+          "<div>⚠️ 偵測到區塊／樓層排休人數重複超額異常（請協調調整）：</div>" +
           conflicts.map(function (line) { return "<div>" + escapeHtml(line) + "</div>"; }).join("");
       } else {
         banner.style.display = "none";
@@ -2602,7 +2938,7 @@
       }
 
       var normPBlock = pObj ? normalizeBlockName(pObj.block) : "";
-      if (session && pObj && BLOCK_LIMITS[normPBlock]) {
+      if (session && session.role === "staff" && pObj && BLOCK_LIMITS[normPBlock]) {
         var blk = normPBlock;
         var limit = BLOCK_LIMITS[blk];
         var offDays = [];
@@ -2615,7 +2951,7 @@
         board.style.display = "block";
         board.innerHTML =
           '<div style="font-weight:800;color:#0c4a6e;margin-bottom:4px;">' +
-          escapeHtml(blk) + " 同層排休狀況總覽（每日上限 " + limit + " 人）：" +
+          escapeHtml(blk) + " 同區排休狀況總覽（每日上限 " + limit + " 人）：" +
           "</div>" +
           (offDays.length > 0
             ? ('<div>' + offDays.join(" · ") + '</div>')
@@ -2623,24 +2959,29 @@
         return;
       }
 
-      var f1Days = [];
-      var f2Days = [];
-      days28.forEach(function (d) {
-        var e1 = (dailyMap && dailyMap[d.iso] && dailyMap[d.iso]["1樓"]) || [];
-        var e2 = (dailyMap && dailyMap[d.iso] && dailyMap[d.iso]["2樓"]) || [];
-        if (e1.length > 0) f1Days.push(formatFloorDayListItem(d, e1, BLOCK_LIMITS["1樓"]));
-        if (e2.length > 0) f2Days.push(formatFloorDayListItem(d, e2, BLOCK_LIMITS["2樓"]));
-      });
+      var limitedBlocks = getOrderedLimitedBlocks();
+      if (limitedBlocks.length === 0) {
+        board.style.display = "none";
+        board.innerHTML = "";
+        return;
+      }
+
+      var linesHtml = limitedBlocks.map(function (blk) {
+        var limit = BLOCK_LIMITS[blk];
+        var blkDays = [];
+        days28.forEach(function (d) {
+          var entries = (dailyMap && dailyMap[d.iso] && dailyMap[d.iso][blk]) || [];
+          if (entries.length > 0) blkDays.push(formatFloorDayListItem(d, entries, limit));
+        });
+        return '<div style="margin-bottom:3px;"><strong>' + escapeHtml(blk) + '（上限' + limit + '人）：</strong>' +
+          (blkDays.length > 0 ? blkDays.join(" · ") : '<span style="color:#64748b;">本期尚無人排休</span>') +
+          "</div>";
+      }).join("");
 
       board.style.display = "block";
       board.innerHTML =
-        '<div style="font-weight:800;color:#0c4a6e;margin-bottom:4px;">各樓層排休狀況總覽：</div>' +
-        '<div style="margin-bottom:3px;"><strong>1樓（上限2人）：</strong>' +
-          (f1Days.length > 0 ? f1Days.join(" · ") : '<span style="color:#64748b;">本期尚無人排休</span>') +
-        "</div>" +
-        "<div><strong>2樓（上限1人）：</strong>" +
-          (f2Days.length > 0 ? f2Days.join(" · ") : '<span style="color:#64748b;">本期尚無人排休</span>') +
-        "</div>";
+        '<div style="font-weight:800;color:#0c4a6e;margin-bottom:4px;">各區塊／樓層排休狀況總覽：</div>' +
+        linesHtml;
     }
 
     function selectPersonByAdmin(personName) {
@@ -2789,9 +3130,16 @@
       var isAdding = (lList.indexOf(isoDate) >= 0) || (sList.indexOf(isoDate) >= 0);
       leaves[selectedPerson] = normalizeDateArray(lList);
       specialLeaves[selectedPerson] = normalizeDateArray(sList);
-      saveState();
+
+      var isAdminMode = session && session.role === "admin";
+      if (isAdminMode) {
+        markAdminUnsaved(selectedPerson);
+      } else {
+        saveState();
+      }
       renderAll();
 
+      var hasConflictMsg = false;
       if (isAdding) {
         var curStaffObj = staff.find(function (s) { return s.name === selectedPerson; });
         var curNormBlk = curStaffObj ? normalizeBlockName(curStaffObj.block) : "";
@@ -2804,13 +3152,20 @@
             return hasL || hasS;
           });
           if (sameBlkOff.length > blkLimit) {
+            hasConflictMsg = true;
             var whoList = sameBlkOff.map(function (s) { return s.name; }).join("、");
-            setAuthMsg("⚠️ 異常提醒：" + isoDate.slice(5).replace("-", "/") + "【" + curNormBlk + "】已有 " + sameBlkOff.length + " 人排休（" + whoList + "），已超過每日上限 " + blkLimit + " 人！", false);
+            setAuthMsg("⚠️ 異常提醒：" + isoDate.slice(5).replace("-", "/") + "【" + curNormBlk + "】已有 " + sameBlkOff.length + " 人排休（" + whoList + "），已超過每日上限 " + blkLimit + " 人！" + (isAdminMode ? "（目前尚未手動存檔）" : ""), false);
           }
         }
       }
 
-      pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
+      if (isAdminMode) {
+        if (!hasConflictMsg) {
+          setAuthMsg("已調整「" + selectedPerson + "」的排休（尚未手動存檔，確認無誤後請按「儲存班表變更」）。", true);
+        }
+      } else {
+        pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
+      }
     }
 
     function clearCurrentPerson() {
@@ -2827,38 +3182,45 @@
       if (scope === "both" || scope === "leave") descParts.push("休假 " + curCount + " 天");
       if (scope === "both" || scope === "special") descParts.push("特休 " + curSpecCount + " 天");
 
-      if (!confirm("確定要清除「" + selectedPerson + "」目前 " + descParts.join("、") + " 的紀錄嗎？此動作會同步更新雲端。")) return;
+      var isAdminMode = session && session.role === "admin";
+      var confirmMsg = isAdminMode
+        ? ("確定要清除「" + selectedPerson + "」目前 " + descParts.join("、") + " 的紀錄嗎？（清除後仍需按「儲存班表變更」才會同步至雲端）")
+        : ("確定要清除「" + selectedPerson + "」目前 " + descParts.join("、") + " 的紀錄嗎？此動作會同步更新雲端。");
+      if (!confirm(confirmMsg)) return;
       pushUndoSnapshot(selectedPerson);
 
       if (scope === "both" || scope === "leave") leaves[selectedPerson] = [];
       if (scope === "both" || scope === "special") specialLeaves[selectedPerson] = [];
 
-      saveState();
-      renderAll();
-      pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
-      setAuthMsg("已清除「" + selectedPerson + "」的" + getScopeLabel(scope) + "紀錄並同步至雲端。", true);
+      if (isAdminMode) {
+        markAdminUnsaved(selectedPerson);
+        renderAll();
+        setAuthMsg("已暫時清除「" + selectedPerson + "」的" + getScopeLabel(scope) + "紀錄（尚未手動存檔，請按「儲存班表變更」生效）。", true);
+      } else {
+        saveState();
+        renderAll();
+        pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
+        setAuthMsg("已清除「" + selectedPerson + "」的" + getScopeLabel(scope) + "紀錄並同步至雲端。", true);
+      }
     }
 
     function clearAllLeaves() {
       if (!session || session.role !== "admin") return;
       var scopeEl = document.getElementById("clearAllScopeSelect");
       var scope = scopeEl ? scopeEl.value : "both";
-      if (!confirm("確定要清除全店所有（共 " + staff.length + " 位）人員的「" + getScopeLabel(scope) + "」紀錄嗎？此動作會同步更新雲端。")) return;
+      if (!confirm("確定要清除全店所有（共 " + staff.length + " 位）人員的「" + getScopeLabel(scope) + "」紀錄嗎？（清除後仍需按「儲存班表變更」才會同步至雲端）")) return;
 
-      pullFromCloud(false).then(function () {
-        if (scope === "both" || scope === "leave") {
-          Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
-          staff.forEach(function (p) { leaves[p.name] = []; });
-        }
-        if (scope === "both" || scope === "special") {
-          Object.keys(specialLeaves).forEach(function (k) { specialLeaves[k] = []; });
-          staff.forEach(function (p) { specialLeaves[p.name] = []; });
-        }
-        saveState();
-        renderAll();
-        pushAllToCloud();
-        setAuthMsg("已清除全店的「" + getScopeLabel(scope) + "」紀錄並同步至雲端。", true);
-      });
+      if (scope === "both" || scope === "leave") {
+        Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
+        staff.forEach(function (p) { leaves[p.name] = []; });
+      }
+      if (scope === "both" || scope === "special") {
+        Object.keys(specialLeaves).forEach(function (k) { specialLeaves[k] = []; });
+        staff.forEach(function (p) { specialLeaves[p.name] = []; });
+      }
+      staff.forEach(function (p) { markAdminUnsaved(p.name); });
+      renderAll();
+      setAuthMsg("已暫時清除全店的「" + getScopeLabel(scope) + "」紀錄（尚未手動存檔，請按「儲存班表變更」生效）。", true);
     }
 
     function addStaff() {
@@ -3037,6 +3399,7 @@
     function renderAll() {
       renderQueueBanner();
       syncLockControlsUI();
+      renderBlockLimitsAdminUI();
       var days28 = getSchedule28Days();
       var grid = document.getElementById("calendarGrid");
       var box = document.getElementById("currentLeaveDatesBox");
@@ -3177,21 +3540,17 @@
         var hasFloorOff = dayAllEntries.length > 0;
         var subText = "非班表日";
 
-        var dayF1 = (inRange && dailyMap[iso]) ? dailyMap[iso]["1樓"] : [];
-        var dayF2 = (inRange && dailyMap[iso]) ? dailyMap[iso]["2樓"] : [];
-        var f1Over = dayF1.length > BLOCK_LIMITS["1樓"];
-        var f2Over = dayF2.length > BLOCK_LIMITS["2樓"];
-        var anyFloorOver = f1Over || f2Over;
-
+        var limitedBlocks = getOrderedLimitedBlocks();
+        var anyFloorOver = false;
         var overBadgeParts = [];
-        if (f1Over) {
-          var f1Who = dayF1.map(function (x) { return getThirdChar(x.name); }).join("、");
-          overBadgeParts.push("⚠️1樓重複(" + f1Who + ")");
-        }
-        if (f2Over) {
-          var f2Who = dayF2.map(function (x) { return getThirdChar(x.name); }).join("、");
-          overBadgeParts.push("⚠️2樓重複(" + f2Who + ")");
-        }
+        limitedBlocks.forEach(function (blk) {
+          var entries = (inRange && dailyMap[iso] && dailyMap[iso][blk]) ? dailyMap[iso][blk] : [];
+          if (entries.length > BLOCK_LIMITS[blk]) {
+            anyFloorOver = true;
+            var whoStr = entries.map(function (x) { return getThirdChar(x.name); }).join("、");
+            overBadgeParts.push("⚠️" + blk + "重複(" + whoStr + ")");
+          }
+        });
         var overAlertText = overBadgeParts.join(" ");
 
         if (!inRange) {
@@ -3212,7 +3571,7 @@
             subText = allOffSummary ? (roBase + "\n休:" + allOffSummary) : roBase;
           }
         } else if (targetLimit) {
-          var blkEntries = (targetBlock === "1樓") ? dayF1 : dayF2;
+          var blkEntries = (inRange && dailyMap[iso] && dailyMap[iso][targetBlock]) ? dailyMap[iso][targetBlock] : [];
           var curBlkCount = blkEntries.length;
           blockOver = (curBlkCount > targetLimit) || anyFloorOver;
           fullHint = !isLeave && !isSpecial && (curBlkCount >= targetLimit);
@@ -3365,25 +3724,18 @@
       });
 
       rows.push({ cells: ["當日休/特總人數", "", ""].concat(dailyTotal.map(String)), type: "summary" });
-      rows.push({
-        cells: ["1樓休/特（上限2人）", "", ""].concat(days28.map(function (d) {
-          var entries = dailyMap[d.iso]["1樓"];
-          var thirdStr = entries.map(function (x) { return getThirdChar(x.name); }).filter(Boolean).join("、");
-          return entries.length > BLOCK_LIMITS["1樓"]
-            ? (entries.length + " 額滿" + (thirdStr ? "(" + thirdStr + ")" : ""))
-            : (thirdStr || String(entries.length));
-        })),
-        type: "f1"
-      });
-      rows.push({
-        cells: ["2樓休/特（上限1人）", "", ""].concat(days28.map(function (d) {
-          var entries = dailyMap[d.iso]["2樓"];
-          var thirdStr = entries.map(function (x) { return getThirdChar(x.name); }).filter(Boolean).join("、");
-          return entries.length > BLOCK_LIMITS["2樓"]
-            ? (entries.length + " 額滿" + (thirdStr ? "(" + thirdStr + ")" : ""))
-            : (thirdStr || String(entries.length));
-        })),
-        type: "f2"
+      getOrderedLimitedBlocks().forEach(function (blk, bIdx) {
+        var limit = BLOCK_LIMITS[blk];
+        rows.push({
+          cells: [blk + "休/特（上限" + limit + "人）", "", ""].concat(days28.map(function (d) {
+            var entries = (dailyMap[d.iso] && dailyMap[d.iso][blk]) || [];
+            var thirdStr = entries.map(function (x) { return getThirdChar(x.name); }).filter(Boolean).join("、");
+            return entries.length > limit
+              ? (entries.length + " 額滿" + (thirdStr ? "(" + thirdStr + ")" : ""))
+              : (thirdStr || String(entries.length));
+          })),
+          type: "f" + (bIdx + 1)
+        });
       });
 
       var colWidths = [128, 56, 92];
@@ -3414,7 +3766,8 @@
 
       ctx.fillStyle = "#475569";
       ctx.font = "13px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
-      ctx.fillText("匯出日期：" + formatISO(new Date()) + " ｜ 休假「1」／特休「特」／1樓上限 2 人、2樓上限 1 人", padX, 55);
+      var limitRuleSummaryPdf = getOrderedLimitedBlocks().map(function (b) { return b + "上限 " + BLOCK_LIMITS[b] + " 人"; }).join("、");
+      ctx.fillText("匯出日期：" + formatISO(new Date()) + " ｜ 休假「1」／特休「特」" + (limitRuleSummaryPdf ? ("／" + limitRuleSummaryPdf) : ""), padX, 55);
 
       var y = titleBlockH;
       var x = padX;
@@ -3596,6 +3949,14 @@
     });
     document.getElementById("adminPassInput").addEventListener("keydown", function (ev) {
       if (ev.key === "Enter") loginAdmin();
+    });
+
+    window.addEventListener("beforeunload", function (e) {
+      if (session && session.role === "admin" && adminHasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "您有尚未手動存檔的班表修改，確定要離開頁面嗎？";
+        return e.returnValue;
+      }
     });
 
     if ("serviceWorker" in navigator) {
