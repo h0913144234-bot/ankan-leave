@@ -1537,8 +1537,9 @@
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
     var IDLE_TIMEOUT_MINUTES = 5;
-    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v21_";
+    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v22_";
     var QUEUE_STORAGE_KEY = STORAGE_PREFIX + "pending_sync_queue";
+    var SHARED_ORDER_KEY = STORAGE_PREFIX + "shared_staff_order";
 
     var BLOCK_LIMITS = {
       "1樓": 2,
@@ -1584,6 +1585,77 @@
       return cleaned;
     }
 
+    function getSavedStaffOrder() {
+      try {
+        var raw = localStorage.getItem(SHARED_ORDER_KEY);
+        var arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) return [];
+        var seen = new Set();
+        return arr.map(function (x) { return String(x || "").trim(); }).filter(function (n) {
+          if (!n || isExcludedName(n) || seen.has(n)) return false;
+          seen.add(n);
+          return true;
+        });
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveStaffOrder(list) {
+      try {
+        var names = sanitizeStaffList(list).map(function (s) { return s.name; });
+        localStorage.setItem(SHARED_ORDER_KEY, JSON.stringify(names));
+      } catch (e) {}
+    }
+
+    function applyStaffOrder(list, customOrder) {
+      var cleaned = sanitizeStaffList(list);
+      var order = Array.isArray(customOrder) && customOrder.length > 0 ? customOrder : getSavedStaffOrder();
+      if (!order || order.length === 0) return cleaned;
+
+      var rankMap = {};
+      order.forEach(function (name, idx) {
+        rankMap[name] = idx;
+      });
+
+      var inOrder = [];
+      var notInOrder = [];
+
+      cleaned.forEach(function (item, originalIdx) {
+        if (Object.prototype.hasOwnProperty.call(rankMap, item.name)) {
+          inOrder.push({ item: item, rank: rankMap[item.name], orig: originalIdx });
+        } else {
+          notInOrder.push({ item: item, orig: originalIdx });
+        }
+      });
+
+      inOrder.sort(function (a, b) {
+        return a.rank - b.rank;
+      });
+
+      var result = inOrder.map(function (x) { return x.item; });
+
+      notInOrder.forEach(function (x) {
+        var blk = String(x.item.block || "").trim();
+        var insertAt = -1;
+        if (blk === "1樓" || blk === "2樓") {
+          for (var i = result.length - 1; i >= 0; i--) {
+            if (String(result[i].block || "").trim() === blk) {
+              insertAt = i + 1;
+              break;
+            }
+          }
+        }
+        if (insertAt >= 0) {
+          result.splice(insertAt, 0, x.item);
+        } else {
+          result.push(x.item);
+        }
+      });
+
+      return sanitizeStaffList(result);
+    }
+
     function ensureLeaveMapsForStaff() {
       var validNames = new Set(staff.map(function (s) { return s.name; }));
       var nextLeaves = {};
@@ -1627,14 +1699,14 @@
       {"block": "廠協", "emp_id": "", "name": "蕭學親", "phone": "0981632735", "role": "國際廠協"}
     ]);
 
-    var staff = initialStaff.slice();
+    var staff = applyStaffOrder(initialStaff);
     var leaves = {};
     var specialLeaves = {};
     ensureLeaveMapsForStaff();
 
     var entryMode = "leave";
-    var selectedPerson = staff[0].name;
-    var editingOriginalName = staff[0].name;
+    var selectedPerson = staff[0] ? staff[0].name : "";
+    var editingOriginalName = staff[0] ? staff[0].name : "";
     var targetLeaveDays = 8;
     var scheduleLocked = false;
     var deadlineDate = "";
@@ -1705,12 +1777,13 @@
       staff[idx] = staff[targetIdx];
       staff[targetIdx] = temp;
       staff = sanitizeStaffList(staff);
+      saveStaffOrder(staff);
 
       saveState();
       renderPersonSelect();
       renderAll();
-      pushAllToCloud();
-      setAuthMsg("已調整「" + personName + "」的位置並同步至雲端。", true);
+      pushScheduleSettingsToCloud();
+      setAuthMsg("已調整「" + personName + "」的位置並儲存順序。", true);
     }
 
     function setEntryMode(mode) {
@@ -1885,6 +1958,7 @@
     function expireByIdle() {
       clearIdleTimer();
       if (!session) return;
+      saveStaffOrder(staff);
       session = null;
       lastActivityAt = 0;
       undoStack = [];
@@ -2014,11 +2088,15 @@
     }
 
     function pushScheduleSettingsToCloud() {
+      var currentOrder = sanitizeStaffList(staff).map(function (s) { return s.name; });
+      saveStaffOrder(staff);
+
       var payload = {
         action: "sync_settings",
         scheduleLocked: Boolean(scheduleLocked),
         deadlineDate: String(deadlineDate || ""),
-        targetLeaveDays: Number(targetLeaveDays) || 8
+        targetLeaveDays: Number(targetLeaveDays) || 8,
+        staffOrder: currentOrder
       };
 
       if (!isCloudConfigured() || !navigator.onLine) {
@@ -2028,7 +2106,7 @@
         return;
       }
 
-      setSyncStatus("雲端：同步鎖定設定中...", "sync-busy");
+      setSyncStatus("雲端：同步設定中...", "sync-busy");
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -2041,12 +2119,12 @@
             return !(item && item.action === "sync_settings");
           });
           savePendingQueue(q);
-          setSyncStatus("雲端：鎖定設定已同步 " + formatTimeHM(new Date()), "sync-ok");
+          setSyncStatus("雲端：設定已同步 " + formatTimeHM(new Date()), "sync-ok");
         })
         .catch(function (err) {
           enqueueSyncPayload(payload);
           setSyncStatus("雲端：設定同步失敗（已排入待同步）", "sync-err");
-          setAuthMsg("鎖定／截止日設定同步至雲端失敗（已暫存本機並排入待同步）：" + err.message, false);
+          setAuthMsg("鎖定／排序設定同步至雲端失敗（已暫存本機並排入待同步）：" + err.message, false);
         });
     }
 
@@ -2100,7 +2178,8 @@
         if (curStartVal && !anchorStartDate) {
           anchorStartDate = curStartVal;
         }
-        staff = sanitizeStaffList(staff);
+        staff = applyStaffOrder(staff);
+        saveStaffOrder(staff);
         ensureLeaveMapsForStaff();
         localStorage.setItem(getCurrentStorageKey(), JSON.stringify({
           staff: staff,
@@ -2117,12 +2196,15 @@
     }
 
     function loadStateForCurrentSession() {
+      var preferredOrder = getSavedStaffOrder();
       try {
         var raw = localStorage.getItem(getCurrentStorageKey());
         if (raw) {
           var s = JSON.parse(raw);
           if (Array.isArray(s.staff) && s.staff.length) {
-            staff = sanitizeStaffList(s.staff);
+            staff = applyStaffOrder(s.staff, preferredOrder);
+          } else {
+            staff = applyStaffOrder(staff, preferredOrder);
           }
           if (s.leaves && typeof s.leaves === "object") leaves = s.leaves;
           if (s.specialLeaves && typeof s.specialLeaves === "object") specialLeaves = s.specialLeaves;
@@ -2153,9 +2235,12 @@
           if (typeof s.deadlineDate === "string") {
             deadlineDate = s.deadlineDate;
           }
+        } else {
+          staff = applyStaffOrder(staff, preferredOrder);
         }
-      } catch (e) {}
-      staff = sanitizeStaffList(staff);
+      } catch (e) {
+        staff = applyStaffOrder(staff, preferredOrder);
+      }
       ensureLeaveMapsForStaff();
       editingOriginalName = selectedPerson;
     }
@@ -2175,11 +2260,25 @@
     function applyCloudPayload(data) {
       if (!data || typeof data !== "object") return;
 
+      var cloudOrder = null;
+      if (Array.isArray(data.staffOrder) && data.staffOrder.length > 0) {
+        cloudOrder = data.staffOrder;
+      } else if (data.settings && Array.isArray(data.settings.staffOrder) && data.settings.staffOrder.length > 0) {
+        cloudOrder = data.settings.staffOrder;
+      }
+
+      var effectiveOrder = (cloudOrder && cloudOrder.length > 0) ? cloudOrder : getSavedStaffOrder();
+      if (cloudOrder && cloudOrder.length > 0) {
+        saveStaffOrder(cloudOrder.map(function (n) { return { name: n }; }));
+      }
+
       if (Array.isArray(data.staff) && data.staff.length > 0) {
-        var cleanedCloudStaff = sanitizeStaffList(data.staff);
+        var cleanedCloudStaff = applyStaffOrder(data.staff, effectiveOrder);
         if (cleanedCloudStaff.length > 0) {
           staff = cleanedCloudStaff;
         }
+      } else {
+        staff = applyStaffOrder(staff, effectiveOrder);
       }
 
       var validStaffSet = new Set(staff.map(function (s) { return s.name; }));
@@ -2306,8 +2405,9 @@
         .then(function (res) { return res.json(); })
         .then(function (latestData) {
           if (latestData && latestData.ok) {
+            var orderRef = getSavedStaffOrder();
             if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
-              var cleanedLatestStaff = sanitizeStaffList(latestData.staff);
+              var cleanedLatestStaff = applyStaffOrder(latestData.staff, orderRef);
               if (cleanedLatestStaff.length > 0) {
                 staff = cleanedLatestStaff;
               }
@@ -2394,12 +2494,14 @@
     }
 
     function pushAllToCloud() {
-      staff = sanitizeStaffList(staff);
+      staff = applyStaffOrder(staff);
+      saveStaffOrder(staff);
       ensureLeaveMapsForStaff();
       var curStart = document.getElementById("startDateInput").value;
       var payload = {
         action: "sync_all",
         staff: staff,
+        staffOrder: staff.map(function (s) { return s.name; }),
         leaves: leaves,
         specialLeaves: specialLeaves,
         startDate: curStart || "",
@@ -2545,6 +2647,7 @@
     }
 
     function logoutUser() {
+      saveStaffOrder(staff);
       session = null;
       lastActivityAt = 0;
       undoStack = [];
@@ -3184,6 +3287,7 @@
       };
 
       staff = insertNewStaffIntoBlock(staff, newItem);
+      saveStaffOrder(staff);
       leaves[name] = normalizeDateArray(leaves[name]);
       specialLeaves[name] = normalizeDateArray(specialLeaves[name]);
       selectedPerson = name;
@@ -3254,6 +3358,7 @@
 
       staff[targetIdx] = updatedItem;
       staff = sanitizeStaffList(staff);
+      saveStaffOrder(staff);
       ensureLeaveMapsForStaff();
       editingOriginalName = newName;
       saveState();
@@ -3287,6 +3392,7 @@
 
       staff.splice(targetIdx, 1);
       staff = sanitizeStaffList(staff);
+      saveStaffOrder(staff);
       delete leaves[targetName];
       delete specialLeaves[targetName];
       ensureLeaveMapsForStaff();
