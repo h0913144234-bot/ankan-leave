@@ -2561,7 +2561,7 @@
     function renderConflictAlertBanner(days28, dailyMap) {
       var banner = document.getElementById("conflictAlertBanner");
       if (!banner) return;
-      if (!days28 || days28.length < 28 || !dailyMap) {
+      if (!session || !days28 || days28.length < 28 || !dailyMap) {
         banner.style.display = "none";
         banner.innerHTML = "";
         return;
@@ -2595,7 +2595,7 @@
     function renderFloorScheduleBoard(days28, pObj, dailyMap) {
       var board = document.getElementById("floorScheduleBoard");
       if (!board) return;
-      if (!days28 || days28.length < 28) {
+      if (!session || !days28 || days28.length < 28) {
         board.style.display = "none";
         board.innerHTML = "";
         return;
