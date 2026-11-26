@@ -532,6 +532,12 @@
       transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
 
+    select.clear-mode-select {
+      padding: 8px 10px;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+
     select:focus, input:focus {
       outline: none;
       background: rgba(255, 255, 255, 0.94);
@@ -1187,11 +1193,12 @@
         width: 100%;
         min-height: 42px;
       }
-      .toolbar-group .btn-sm {
+      .toolbar-group .btn-sm,
+      .toolbar-group select.clear-mode-select {
         width: auto;
         flex: 0 0 auto;
         min-height: 38px;
-        padding: 7px 11px;
+        padding: 7px 10px;
       }
       .auth-form {
         gap: 9px;
@@ -1357,8 +1364,22 @@
       </div>
       <button type="button" id="undoBtn" class="btn btn-secondary" onclick="undoLastLeaveChange()" disabled>復原上一步</button>
       <button type="button" class="btn btn-secondary" onclick="pullFromCloud(true)">重新整理雲端資料</button>
-      <button type="button" id="clearMineBtn" class="btn btn-secondary" onclick="clearCurrentPerson()">清除目前人員休假</button>
-      <button type="button" id="clearAllBtn" class="btn btn-danger" onclick="clearAllLeaves()">清除全部休假</button>
+      <div class="toolbar-group">
+        <select id="clearPersonScopeSelect" class="clear-mode-select" aria-label="目前人員清除假別範圍">
+          <option value="both">休假＋特休一起清</option>
+          <option value="leave">只清休假（1）</option>
+          <option value="special">只清特休（特）</option>
+        </select>
+        <button type="button" id="clearMineBtn" class="btn btn-secondary" onclick="clearCurrentPerson()">清除目前人員</button>
+      </div>
+      <div id="adminClearAllGroup" class="toolbar-group" style="display:none;">
+        <select id="clearAllScopeSelect" class="clear-mode-select" aria-label="全店清除假別範圍">
+          <option value="both">全店休假＋特休一起清</option>
+          <option value="leave">全店只清休假（1）</option>
+          <option value="special">全店只清特休（特）</option>
+        </select>
+        <button type="button" id="clearAllBtn" class="btn btn-danger" onclick="clearAllLeaves()">清除全店假別</button>
+      </div>
       <button type="button" class="btn btn-success" onclick="exportPdfSchedule()">匯出 PDF</button>
       <button type="button" class="btn btn-primary" onclick="exportCsv()">匯出 CSV</button>
     </div>
@@ -1568,6 +1589,12 @@
 
     function getTodayISO() {
       return formatISO(new Date());
+    }
+
+    function getScopeLabel(scope) {
+      if (scope === "leave") return "休假（1）";
+      if (scope === "special") return "特休（特）";
+      return "休假與特休";
     }
 
     function setEntryMode(mode) {
@@ -2388,7 +2415,8 @@
       var adminPersonCtrl = document.getElementById("adminPersonControl");
       var adminLockCtrl = document.getElementById("adminScheduleLockControl");
       var clearMineBtn = document.getElementById("clearMineBtn");
-      var clearAllBtn = document.getElementById("clearAllBtn");
+      var clearPersonScopeSelect = document.getElementById("clearPersonScopeSelect");
+      var adminClearAllGroup = document.getElementById("adminClearAllGroup");
       var mainGrid = document.getElementById("mainGrid");
       var summaryCard = document.getElementById("summaryCard");
       var matrixCard = document.getElementById("matrixCard");
@@ -2405,7 +2433,8 @@
         adminPersonCtrl.style.display = "none";
         adminLockCtrl.style.display = "none";
         clearMineBtn.disabled = true;
-        clearAllBtn.style.display = "none";
+        if (clearPersonScopeSelect) clearPersonScopeSelect.disabled = true;
+        if (adminClearAllGroup) adminClearAllGroup.style.display = "none";
         mainGrid.classList.add("single-col");
         summaryCard.style.display = "none";
         matrixCard.style.display = "none";
@@ -2422,7 +2451,8 @@
         adminPersonCtrl.style.display = "none";
         adminLockCtrl.style.display = "none";
         clearMineBtn.disabled = isScheduleClosedForStaff();
-        clearAllBtn.style.display = "none";
+        if (clearPersonScopeSelect) clearPersonScopeSelect.disabled = isScheduleClosedForStaff();
+        if (adminClearAllGroup) adminClearAllGroup.style.display = "none";
         mainGrid.classList.add("single-col");
         summaryCard.style.display = "none";
         matrixCard.style.display = "none";
@@ -2438,7 +2468,8 @@
         adminPersonCtrl.style.display = "flex";
         adminLockCtrl.style.display = "flex";
         clearMineBtn.disabled = false;
-        clearAllBtn.style.display = "inline-block";
+        if (clearPersonScopeSelect) clearPersonScopeSelect.disabled = false;
+        if (adminClearAllGroup) adminClearAllGroup.style.display = "flex";
         mainGrid.classList.remove("single-col");
         summaryCard.style.display = "block";
         matrixCard.style.display = "block";
@@ -2924,29 +2955,49 @@
 
     function clearCurrentPerson() {
       if (!canModifyLeave(selectedPerson)) {
-        setAuthMsg("目前排休已截止鎖定，無法清除休假紀錄。", false);
+        setAuthMsg("目前排休已截止鎖定，無法清除休假或特休紀錄。", false);
         return;
       }
+      var scopeEl = document.getElementById("clearPersonScopeSelect");
+      var scope = scopeEl ? scopeEl.value : "both";
       var curCount = (leaves[selectedPerson] || []).length;
       var curSpecCount = (specialLeaves[selectedPerson] || []).length;
-      if (!confirm("確定要清除「" + selectedPerson + "」目前共 " + curCount + " 天休假與 " + curSpecCount + " 天特休的紀錄嗎？此動作會同步更新雲端。")) return;
+
+      var descParts = [];
+      if (scope === "both" || scope === "leave") descParts.push("休假 " + curCount + " 天");
+      if (scope === "both" || scope === "special") descParts.push("特休 " + curSpecCount + " 天");
+
+      if (!confirm("確定要清除「" + selectedPerson + "」目前 " + descParts.join("、") + " 的紀錄嗎？此動作會同步更新雲端。")) return;
       pushUndoSnapshot(selectedPerson);
-      leaves[selectedPerson] = [];
-      specialLeaves[selectedPerson] = [];
+
+      if (scope === "both" || scope === "leave") leaves[selectedPerson] = [];
+      if (scope === "both" || scope === "special") specialLeaves[selectedPerson] = [];
+
       saveState();
       renderAll();
-      pushPersonToCloudSafe(selectedPerson, [], []);
+      pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
+      setAuthMsg("已清除「" + selectedPerson + "」的" + getScopeLabel(scope) + "紀錄並同步至雲端。", true);
     }
 
     function clearAllLeaves() {
       if (!session || session.role !== "admin") return;
-      if (!confirm("確定要清除全店所有（共 " + staff.length + " 位）人員的休假與特休紀錄嗎？此動作會同步更新雲端。")) return;
+      var scopeEl = document.getElementById("clearAllScopeSelect");
+      var scope = scopeEl ? scopeEl.value : "both";
+      if (!confirm("確定要清除全店所有（共 " + staff.length + " 位）人員的「" + getScopeLabel(scope) + "」紀錄嗎？此動作會同步更新雲端。")) return;
+
       pullFromCloud(false).then(function () {
-        Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
-        Object.keys(specialLeaves).forEach(function (k) { specialLeaves[k] = []; });
+        if (scope === "both" || scope === "leave") {
+          Object.keys(leaves).forEach(function (k) { leaves[k] = []; });
+          staff.forEach(function (p) { leaves[p.name] = []; });
+        }
+        if (scope === "both" || scope === "special") {
+          Object.keys(specialLeaves).forEach(function (k) { specialLeaves[k] = []; });
+          staff.forEach(function (p) { specialLeaves[p.name] = []; });
+        }
         saveState();
         renderAll();
         pushAllToCloud();
+        setAuthMsg("已清除全店的「" + getScopeLabel(scope) + "」紀錄並同步至雲端。", true);
       });
     }
 
