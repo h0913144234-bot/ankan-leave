@@ -1255,6 +1255,7 @@
         left: 0;
         z-index: 2;
         background: #f0f9ff;
+        min-width: 76px;
       }
       #matrixCard th:nth-child(1) {
         background: #bae6fd;
@@ -3402,7 +3403,7 @@
         });
 
         var hRow = document.getElementById("matrixHeaderRow");
-        hRow.innerHTML = "<th>姓名</th><th>區塊</th>" + days28.map(function (d) {
+        hRow.innerHTML = "<th>姓名 / 員編</th><th>區塊</th>" + days28.map(function (d) {
           var selCls = (d.iso === inspectedDayIso) ? " selected-day-th" : "";
           return '<th class="day-th-btn' + selCls + '" data-iso="' + escapeHtml(d.iso) + '" title="點選查看當日休假名單">' + d.md + "<br>" + d.wd + "</th>";
         }).join("");
@@ -3418,20 +3419,27 @@
         staff.forEach(function (p) {
           var pLeaveSet = new Set(leaves[p.name] || []);
           var pSpecSet = new Set(specialLeaves[p.name] || []);
+          var empCode = normalizeEmpId6(p.emp_id) || "無員編";
           var tr = document.createElement("tr");
           if (p.name === selectedPerson) tr.className = "active-row";
-          tr.innerHTML = "<td>" + escapeHtml(p.name) + "</td><td>" + escapeHtml(p.block || "") + "</td>" + days28.map(function (d, idx) {
-            var hasL = pLeaveSet.has(d.iso);
-            var hasS = pSpecSet.has(d.iso);
-            if (hasL || hasS) dailyCounts[idx] += 1;
-            if (hasS) {
-              return '<td class="special-cell-mark">特</td>';
-            }
-            if (hasL) {
-              return '<td class="leave-cell-mark">1</td>';
-            }
-            return "<td></td>";
-          }).join("");
+          tr.innerHTML =
+            '<td style="text-align:left;line-height:1.3;">' +
+              '<div style="font-weight:800;">' + escapeHtml(p.name) + "</div>" +
+              '<div style="font-size:11px;color:#0369a1;font-weight:700;">' + escapeHtml(empCode) + "</div>" +
+            "</td>" +
+            "<td>" + escapeHtml(p.block || "") + "</td>" +
+            days28.map(function (d, idx) {
+              var hasL = pLeaveSet.has(d.iso);
+              var hasS = pSpecSet.has(d.iso);
+              if (hasL || hasS) dailyCounts[idx] += 1;
+              if (hasS) {
+                return '<td class="special-cell-mark">特</td>';
+              }
+              if (hasL) {
+                return '<td class="leave-cell-mark">1</td>';
+              }
+              return "<td></td>";
+            }).join("");
           mBody.appendChild(tr);
         });
 
