@@ -1561,7 +1561,7 @@
       leaves[p.name] = [];
       specialLeaves[p.name] = [];
     });
-    var entryMode = "leave"; // "leave" | "special"
+    var entryMode = "leave";
     var selectedPerson = staff[0].name;
     var editingOriginalName = staff[0].name;
     var targetLeaveDays = 8;
@@ -1595,6 +1595,12 @@
       if (scope === "leave") return "休假（1）";
       if (scope === "special") return "特休（特）";
       return "休假與特休";
+    }
+
+    function normalizeEmpId6(val) {
+      var digits = String(val || "").trim().replace(/[^0-9]/g, "");
+      if (!digits) return "";
+      return digits.length < 6 ? digits.padStart(6, "0") : digits;
     }
 
     function setEntryMode(mode) {
@@ -2330,13 +2336,28 @@
         return;
       }
 
+      var inputDigits = idVal.replace(/[^0-9]/g, "");
+      var inputPadded6 = normalizeEmpId6(idVal);
+
       var matched = null;
       for (var i = 0; i < staff.length; i++) {
         var p = staff[i];
         var pPhone = cleanPhone(p.phone);
+        var rawEmpId = String(p.emp_id || "").trim();
+        var empDigits = rawEmpId.replace(/[^0-9]/g, "");
+        var empPadded6 = normalizeEmpId6(rawEmpId);
+
+        var empMatch = Boolean(
+          rawEmpId && (
+            rawEmpId === idVal ||
+            (inputDigits && empDigits && empDigits === inputDigits) ||
+            (inputPadded6 && empPadded6 && empPadded6 === inputPadded6)
+          )
+        );
+
         if (
           p.name === idVal ||
-          (p.emp_id && String(p.emp_id).trim() === idVal) ||
+          empMatch ||
           (pPhone && pPhone === cleanPhone(idVal))
         ) {
           matched = p;
