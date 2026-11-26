@@ -1255,7 +1255,7 @@
         left: 0;
         z-index: 2;
         background: #f0f9ff;
-        min-width: 76px;
+        min-width: 86px;
       }
       #matrixCard th:nth-child(1) {
         background: #bae6fd;
@@ -3482,14 +3482,16 @@
     function renderReportToCanvas(days28) {
       var dailyBlockMap = getDailyBlockLeaves(days28);
 
-      var headers = ["姓名", "區塊", "職務"].concat(days28.map(function (d) { return d.md + "(" + d.wd + ")"; }));
+      var headers = ["姓名 / 員編", "區塊", "職務"].concat(days28.map(function (d) { return d.md + "(" + d.wd + ")"; }));
       var rows = [];
       var dailyTotal = days28.map(function () { return 0; });
 
       staff.forEach(function (p) {
         var pLeaveSet = new Set(leaves[p.name] || []);
         var pSpecSet = new Set(specialLeaves[p.name] || []);
-        var r = [p.name, p.block || "", p.role || ""];
+        var empCode = normalizeEmpId6(p.emp_id) || "無員編";
+        var nameWithEmp = p.name + " (" + empCode + ")";
+        var r = [nameWithEmp, p.block || "", p.role || ""];
         days28.forEach(function (d, idx) {
           if (pSpecSet.has(d.iso)) {
             r.push("特");
@@ -3526,7 +3528,7 @@
         type: "f2"
       });
 
-      var colWidths = [88, 56, 92];
+      var colWidths = [128, 56, 92];
       for (var i = 0; i < 28; i++) colWidths.push(58);
       var tableW = colWidths.reduce(function (a, b) { return a + b; }, 0);
       var padX = 28;
@@ -3601,7 +3603,7 @@
 
           ctx.fillStyle = (isOver || isLeaveCell || isSpecialCell) ? "#ffffff" : (rObj.type !== "staff" ? "#1f3a52" : "#0f172a");
           ctx.font = (isLeaveCell || isSpecialCell || isOver || rObj.type !== "staff" || cIdx === 0)
-            ? "bold 12px 'Microsoft JhengHei', 'PingFang TC', sans-serif"
+            ? "bold 11.5px 'Microsoft JhengHei', 'PingFang TC', sans-serif"
             : "12px 'Microsoft JhengHei', 'PingFang TC', sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
