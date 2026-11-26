@@ -1537,7 +1537,7 @@
     var ADMIN_PASS = "admin";
     var REQUIRE_LAST4_WHEN_PHONE_EXISTS = false;
     var IDLE_TIMEOUT_MINUTES = 5;
-    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v20_";
+    var STORAGE_PREFIX = "nankan_pwa_gsheet_leave_v21_";
     var QUEUE_STORAGE_KEY = STORAGE_PREFIX + "pending_sync_queue";
 
     var BLOCK_LIMITS = {
@@ -1547,7 +1547,72 @@
 
     var UNSCHEDULED_BLOCK_ORDER = ["1樓", "2樓", "廠協", "店長"];
 
-    var initialStaff = [
+    var EXCLUDED_NAMES = ["銀昕", "銀盺"];
+
+    function isExcludedName(name) {
+      var n = String(name || "").trim();
+      return !n || EXCLUDED_NAMES.indexOf(n) >= 0;
+    }
+
+    function normalizeDateArray(arr) {
+      if (!Array.isArray(arr)) return [];
+      var set = new Set();
+      arr.forEach(function (d) {
+        var s = String(d || "").trim();
+        if (s) set.add(s);
+      });
+      return Array.from(set).sort();
+    }
+
+    function sanitizeStaffList(list) {
+      if (!Array.isArray(list)) return [];
+      var seen = new Set();
+      var cleaned = [];
+      list.forEach(function (item) {
+        if (!item || typeof item !== "object") return;
+        var cleanName = String(item.name || "").trim();
+        if (isExcludedName(cleanName) || seen.has(cleanName)) return;
+        seen.add(cleanName);
+        cleaned.push({
+          name: cleanName,
+          block: String(item.block || "").trim() || "未分區",
+          role: String(item.role || "").trim(),
+          emp_id: String(item.emp_id || "").trim(),
+          phone: String(item.phone || "").trim()
+        });
+      });
+      return cleaned;
+    }
+
+    function ensureLeaveMapsForStaff() {
+      var validNames = new Set(staff.map(function (s) { return s.name; }));
+      var nextLeaves = {};
+      var nextSpecials = {};
+
+      staff.forEach(function (s) {
+        nextLeaves[s.name] = normalizeDateArray(leaves[s.name]);
+        nextSpecials[s.name] = normalizeDateArray(specialLeaves[s.name]);
+      });
+
+      Object.keys(leaves || {}).forEach(function (k) {
+        var cleanK = String(k || "").trim();
+        if (validNames.has(cleanK)) {
+          nextLeaves[cleanK] = normalizeDateArray(nextLeaves[cleanK].concat(leaves[k] || []));
+        }
+      });
+
+      Object.keys(specialLeaves || {}).forEach(function (k) {
+        var cleanK = String(k || "").trim();
+        if (validNames.has(cleanK)) {
+          nextSpecials[cleanK] = normalizeDateArray(nextSpecials[cleanK].concat(specialLeaves[k] || []));
+        }
+      });
+
+      leaves = nextLeaves;
+      specialLeaves = nextSpecials;
+    }
+
+    var initialStaff = sanitizeStaffList([
       {"block": "店長", "emp_id": "003279", "name": "呂憲昌", "phone": "0933776016", "role": "店經理"},
       {"block": "1樓", "emp_id": "031837", "name": "呂冠霆", "phone": "0968373948", "role": ""},
       {"block": "1樓", "emp_id": "023643", "name": "李韋忠", "phone": "0910647959", "role": "Apple副理"},
@@ -1560,15 +1625,13 @@
       {"block": "2樓", "emp_id": "016136", "name": "鍾韻琳", "phone": "0912515144", "role": "小家電股副理"},
       {"block": "廠協", "emp_id": "", "name": "易旭羣", "phone": "0917207740", "role": "LG廠協"},
       {"block": "廠協", "emp_id": "", "name": "蕭學親", "phone": "0981632735", "role": "國際廠協"}
-    ];
+    ]);
 
     var staff = initialStaff.slice();
     var leaves = {};
     var specialLeaves = {};
-    staff.forEach(function (p) {
-      leaves[p.name] = [];
-      specialLeaves[p.name] = [];
-    });
+    ensureLeaveMapsForStaff();
+
     var entryMode = "leave";
     var selectedPerson = staff[0].name;
     var editingOriginalName = staff[0].name;
@@ -1613,7 +1676,7 @@
 
     function insertNewStaffIntoBlock(list, newItem) {
       var targetBlock = String((newItem && newItem.block) || "").trim();
-      var copy = list.slice();
+      var copy = sanitizeStaffList(list);
       if (targetBlock === "1樓" || targetBlock === "2樓") {
         var lastIdxInBlock = -1;
         for (var i = copy.length - 1; i >= 0; i--) {
@@ -1624,11 +1687,11 @@
         }
         if (lastIdxInBlock >= 0) {
           copy.splice(lastIdxInBlock + 1, 0, newItem);
-          return copy;
+          return sanitizeStaffList(copy);
         }
       }
       copy.push(newItem);
-      return copy;
+      return sanitizeStaffList(copy);
     }
 
     function moveStaff(personName, delta) {
@@ -1641,6 +1704,7 @@
       var temp = staff[idx];
       staff[idx] = staff[targetIdx];
       staff[targetIdx] = temp;
+      staff = sanitizeStaffList(staff);
 
       saveState();
       renderPersonSelect();
@@ -1674,8 +1738,8 @@
     }
 
     function pushUndoSnapshot(personName) {
-      var prevDates = Array.isArray(leaves[personName]) ? leaves[personName].slice() : [];
-      var prevSpecialDates = Array.isArray(specialLeaves[personName]) ? specialLeaves[personName].slice() : [];
+      var prevDates = normalizeDateArray(leaves[personName]);
+      var prevSpecialDates = normalizeDateArray(specialLeaves[personName]);
       undoStack.push({
         personName: personName,
         dates: prevDates,
@@ -1705,8 +1769,8 @@
         setAuthMsg("目前排休已截止鎖定，無法復原。", false);
         return;
       }
-      leaves[snap.personName] = snap.dates.slice().sort();
-      specialLeaves[snap.personName] = (snap.specialDates || []).slice().sort();
+      leaves[snap.personName] = normalizeDateArray(snap.dates);
+      specialLeaves[snap.personName] = normalizeDateArray(snap.specialDates);
       if (session.role === "admin") {
         selectedPerson = snap.personName;
         loadStaffToEditor(selectedPerson);
@@ -2036,6 +2100,8 @@
         if (curStartVal && !anchorStartDate) {
           anchorStartDate = curStartVal;
         }
+        staff = sanitizeStaffList(staff);
+        ensureLeaveMapsForStaff();
         localStorage.setItem(getCurrentStorageKey(), JSON.stringify({
           staff: staff,
           leaves: leaves,
@@ -2055,19 +2121,19 @@
         var raw = localStorage.getItem(getCurrentStorageKey());
         if (raw) {
           var s = JSON.parse(raw);
-          if (Array.isArray(s.staff) && s.staff.length) staff = s.staff;
+          if (Array.isArray(s.staff) && s.staff.length) {
+            staff = sanitizeStaffList(s.staff);
+          }
           if (s.leaves && typeof s.leaves === "object") leaves = s.leaves;
           if (s.specialLeaves && typeof s.specialLeaves === "object") specialLeaves = s.specialLeaves;
-          staff.forEach(function (p) {
-            if (!Array.isArray(leaves[p.name])) leaves[p.name] = [];
-            if (!Array.isArray(specialLeaves[p.name])) specialLeaves[p.name] = [];
-          });
+          ensureLeaveMapsForStaff();
+
           if (session && session.role === "staff") {
             selectedPerson = session.name;
           } else if (s.selectedPerson && staff.some(function (p) { return p.name === s.selectedPerson; })) {
             selectedPerson = s.selectedPerson;
           } else {
-            selectedPerson = staff[0].name;
+            selectedPerson = staff[0] ? staff[0].name : "";
           }
           if (s.startDate) {
             document.getElementById("startDateInput").value = s.startDate;
@@ -2089,6 +2155,8 @@
           }
         }
       } catch (e) {}
+      staff = sanitizeStaffList(staff);
+      ensureLeaveMapsForStaff();
       editingOriginalName = selectedPerson;
     }
 
@@ -2105,26 +2173,42 @@
     }
 
     function applyCloudPayload(data) {
+      if (!data || typeof data !== "object") return;
+
       if (Array.isArray(data.staff) && data.staff.length > 0) {
-        staff = data.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
+        var cleanedCloudStaff = sanitizeStaffList(data.staff);
+        if (cleanedCloudStaff.length > 0) {
+          staff = cleanedCloudStaff;
+        }
       }
+
+      var validStaffSet = new Set(staff.map(function (s) { return s.name; }));
+      var nextLeaves = {};
+      var nextSpecials = {};
+
+      staff.forEach(function (s) {
+        nextLeaves[s.name] = [];
+        nextSpecials[s.name] = [];
+      });
 
       if (data.leaves && typeof data.leaves === "object") {
         Object.keys(data.leaves).forEach(function (name) {
-          if (name === "銀昕" || name === "銀盺") return;
-          leaves[name] = Array.isArray(data.leaves[name]) ? data.leaves[name].slice().sort() : [];
-          if (!staff.some(function (s) { return s.name === name; })) {
-            staff.push({ name: name, block: "未分區", role: "", emp_id: "", phone: "" });
-          }
+          var cleanName = String(name || "").trim();
+          if (!validStaffSet.has(cleanName) || isExcludedName(cleanName)) return;
+          nextLeaves[cleanName] = normalizeDateArray(data.leaves[name]);
         });
       }
 
       if (data.specialLeaves && typeof data.specialLeaves === "object") {
         Object.keys(data.specialLeaves).forEach(function (name) {
-          if (name === "銀昕" || name === "銀盺") return;
-          specialLeaves[name] = Array.isArray(data.specialLeaves[name]) ? data.specialLeaves[name].slice().sort() : [];
+          var cleanName = String(name || "").trim();
+          if (!validStaffSet.has(cleanName) || isExcludedName(cleanName)) return;
+          nextSpecials[cleanName] = normalizeDateArray(data.specialLeaves[name]);
         });
       }
+
+      leaves = nextLeaves;
+      specialLeaves = nextSpecials;
 
       if (data.startDate) {
         anchorStartDate = data.startDate;
@@ -2154,10 +2238,7 @@
         if (tInput) tInput.value = String(targetLeaveDays);
       }
 
-      staff.forEach(function (p) {
-        if (!Array.isArray(leaves[p.name])) leaves[p.name] = [];
-        if (!Array.isArray(specialLeaves[p.name])) specialLeaves[p.name] = [];
-      });
+      ensureLeaveMapsForStaff();
       if (session && session.role === "staff") {
         selectedPerson = session.name;
       } else if (!staff.some(function (p) { return p.name === selectedPerson; })) {
@@ -2203,11 +2284,12 @@
     }
 
     function pushPersonToCloudSafe(personName, updatedDates, updatedSpecialDates) {
+      var cleanPersonName = String(personName || "").trim();
       var payload = {
         action: "sync_person",
-        staffName: personName,
-        dates: updatedDates.slice().sort(),
-        specialDates: (updatedSpecialDates || specialLeaves[personName] || []).slice().sort(),
+        staffName: cleanPersonName,
+        dates: normalizeDateArray(updatedDates),
+        specialDates: normalizeDateArray(updatedSpecialDates || specialLeaves[cleanPersonName]),
         scheduleLocked: Boolean(scheduleLocked),
         deadlineDate: String(deadlineDate || "")
       };
@@ -2224,29 +2306,27 @@
         .then(function (res) { return res.json(); })
         .then(function (latestData) {
           if (latestData && latestData.ok) {
+            if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
+              var cleanedLatestStaff = sanitizeStaffList(latestData.staff);
+              if (cleanedLatestStaff.length > 0) {
+                staff = cleanedLatestStaff;
+              }
+            }
+            var validNames = new Set(staff.map(function (s) { return s.name; }));
             if (latestData.leaves && typeof latestData.leaves === "object") {
               Object.keys(latestData.leaves).forEach(function (otherName) {
-                if (otherName === personName || otherName === "銀昕" || otherName === "銀盺") return;
-                leaves[otherName] = Array.isArray(latestData.leaves[otherName])
-                  ? latestData.leaves[otherName].slice().sort()
-                  : [];
+                var cleanOther = String(otherName || "").trim();
+                if (cleanOther === cleanPersonName || !validNames.has(cleanOther) || isExcludedName(cleanOther)) return;
+                leaves[cleanOther] = normalizeDateArray(latestData.leaves[otherName]);
               });
             }
             if (latestData.specialLeaves && typeof latestData.specialLeaves === "object") {
               Object.keys(latestData.specialLeaves).forEach(function (otherName) {
-                if (otherName === personName || otherName === "銀昕" || otherName === "銀盺") return;
-                specialLeaves[otherName] = Array.isArray(latestData.specialLeaves[otherName])
-                  ? latestData.specialLeaves[otherName].slice().sort()
-                  : [];
+                var cleanOther = String(otherName || "").trim();
+                if (cleanOther === cleanPersonName || !validNames.has(cleanOther) || isExcludedName(cleanOther)) return;
+                specialLeaves[cleanOther] = normalizeDateArray(latestData.specialLeaves[otherName]);
               });
             }
-            if (Array.isArray(latestData.staff) && latestData.staff.length > 0) {
-              staff = latestData.staff.filter(function (s) { return s && s.name && s.name !== "銀昕" && s.name !== "銀盺"; });
-            }
-            staff.forEach(function (p) {
-              if (!Array.isArray(leaves[p.name])) leaves[p.name] = [];
-              if (!Array.isArray(specialLeaves[p.name])) specialLeaves[p.name] = [];
-            });
             if (typeof latestData.scheduleLocked === "boolean") {
               scheduleLocked = latestData.scheduleLocked;
             }
@@ -2255,10 +2335,12 @@
             }
           }
 
-          leaves[personName] = updatedDates.slice().sort();
-          specialLeaves[personName] = (updatedSpecialDates || specialLeaves[personName] || []).slice().sort();
-          payload.dates = leaves[personName];
-          payload.specialDates = specialLeaves[personName];
+          leaves[cleanPersonName] = normalizeDateArray(updatedDates);
+          specialLeaves[cleanPersonName] = normalizeDateArray(updatedSpecialDates || specialLeaves[cleanPersonName]);
+          ensureLeaveMapsForStaff();
+
+          payload.dates = leaves[cleanPersonName] || [];
+          payload.specialDates = specialLeaves[cleanPersonName] || [];
           payload.scheduleLocked = Boolean(scheduleLocked);
           payload.deadlineDate = String(deadlineDate || "");
           saveState();
@@ -2274,7 +2356,7 @@
         .then(function (data) {
           if (!data || !data.ok) throw new Error((data && data.error) || "寫入失敗");
           var q = getPendingQueue().filter(function (item) {
-            return !(item && item.action === "sync_person" && item.staffName === personName);
+            return !(item && item.action === "sync_person" && item.staffName === cleanPersonName);
           });
           savePendingQueue(q);
           setSyncStatus("雲端：已存檔 " + formatTimeHM(new Date()), "sync-ok");
@@ -2312,6 +2394,8 @@
     }
 
     function pushAllToCloud() {
+      staff = sanitizeStaffList(staff);
+      ensureLeaveMapsForStaff();
       var curStart = document.getElementById("startDateInput").value;
       var payload = {
         action: "sync_all",
@@ -2690,10 +2774,11 @@
     }
 
     function getGroupedUnscheduledData(days28) {
+      var cleanStaff = sanitizeStaffList(staff);
       var hasRange = Array.isArray(days28) && days28.length === 28;
       var dayIsoSet = hasRange ? new Set(days28.map(function (d) { return d.iso; })) : null;
 
-      var unscheduled = staff.filter(function (p) {
+      var unscheduled = cleanStaff.filter(function (p) {
         var lArr = Array.isArray(leaves[p.name]) ? leaves[p.name] : [];
         var sArr = Array.isArray(specialLeaves[p.name]) ? specialLeaves[p.name] : [];
         if (!hasRange) return lArr.length === 0 && sArr.length === 0;
@@ -3013,11 +3098,11 @@
         }
       }
 
-      leaves[selectedPerson] = lList;
-      specialLeaves[selectedPerson] = sList;
+      leaves[selectedPerson] = normalizeDateArray(lList);
+      specialLeaves[selectedPerson] = normalizeDateArray(sList);
       saveState();
       renderAll();
-      pushPersonToCloudSafe(selectedPerson, lList, sList);
+      pushPersonToCloudSafe(selectedPerson, leaves[selectedPerson], specialLeaves[selectedPerson]);
     }
 
     function clearCurrentPerson() {
@@ -3081,6 +3166,10 @@
         setAuthMsg("請先輸入要新增的員工姓名。", false);
         return;
       }
+      if (isExcludedName(name)) {
+        setAuthMsg("此名稱不可新增。", false);
+        return;
+      }
       if (staff.some(function (s) { return s.name === name; })) {
         setAuthMsg("名單中已有「" + name + "」，請改用修改功能。", false);
         return;
@@ -3095,8 +3184,8 @@
       };
 
       staff = insertNewStaffIntoBlock(staff, newItem);
-      if (!Array.isArray(leaves[name])) leaves[name] = [];
-      if (!Array.isArray(specialLeaves[name])) specialLeaves[name] = [];
+      leaves[name] = normalizeDateArray(leaves[name]);
+      specialLeaves[name] = normalizeDateArray(specialLeaves[name]);
       selectedPerson = name;
 
       nEl.value = "";
@@ -3130,6 +3219,10 @@
         setAuthMsg("員工姓名不可為空白。", false);
         return;
       }
+      if (isExcludedName(newName)) {
+        setAuthMsg("此名稱不可使用。", false);
+        return;
+      }
 
       var oldName = staff[targetIdx].name;
       if (newName !== oldName && staff.some(function (s, idx) { return idx !== targetIdx && s.name === newName; })) {
@@ -3140,12 +3233,12 @@
       if (newName !== oldName) {
         var oldDates = Array.isArray(leaves[oldName]) ? leaves[oldName].slice() : [];
         var existingNewDates = Array.isArray(leaves[newName]) ? leaves[newName].slice() : [];
-        leaves[newName] = Array.from(new Set(existingNewDates.concat(oldDates))).sort();
+        leaves[newName] = normalizeDateArray(existingNewDates.concat(oldDates));
         delete leaves[oldName];
 
         var oldSpecDates = Array.isArray(specialLeaves[oldName]) ? specialLeaves[oldName].slice() : [];
         var existingNewSpecDates = Array.isArray(specialLeaves[newName]) ? specialLeaves[newName].slice() : [];
-        specialLeaves[newName] = Array.from(new Set(existingNewSpecDates.concat(oldSpecDates))).sort();
+        specialLeaves[newName] = normalizeDateArray(existingNewSpecDates.concat(oldSpecDates));
         delete specialLeaves[oldName];
 
         if (selectedPerson === oldName) selectedPerson = newName;
@@ -3160,6 +3253,8 @@
       };
 
       staff[targetIdx] = updatedItem;
+      staff = sanitizeStaffList(staff);
+      ensureLeaveMapsForStaff();
       editingOriginalName = newName;
       saveState();
       renderPersonSelect();
@@ -3191,9 +3286,11 @@
       if (!confirm("確定要從名單移除「" + targetName + "（" + targetBlock + "，已排休假 " + targetLeaveCount + " 天、特休 " + targetSpecialCount + " 天）」嗎？此動作會同步更新雲端。")) return;
 
       staff.splice(targetIdx, 1);
+      staff = sanitizeStaffList(staff);
       delete leaves[targetName];
       delete specialLeaves[targetName];
-      if (selectedPerson === targetName) selectedPerson = staff[0].name;
+      ensureLeaveMapsForStaff();
+      if (selectedPerson === targetName) selectedPerson = staff[0] ? staff[0].name : "";
       editingOriginalName = selectedPerson;
 
       saveState();
@@ -3237,7 +3334,7 @@
       var closedForStaff = isScheduleClosedForStaff();
 
       var targetName = (session && session.role === "staff") ? session.name : selectedPerson;
-      var pObj = staff.find(function (s) { return s.name === targetName; }) || staff[0];
+      var pObj = staff.find(function (s) { return s.name === targetName; }) || staff[0] || { name: "", block: "", role: "" };
       var targetBlock = pObj.block;
       var targetLimit = BLOCK_LIMITS[targetBlock] || null;
 
